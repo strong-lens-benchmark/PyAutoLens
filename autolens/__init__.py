@@ -133,6 +133,10 @@ conf.instance.register(__file__)
 
 __version__ = "2026.4.13.6"
 
+from autoconf import check_version
+
+check_version(__version__)
+
 
 def __getattr__(name):
     if name == "plot":
