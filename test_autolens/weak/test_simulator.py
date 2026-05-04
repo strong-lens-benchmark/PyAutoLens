@@ -55,7 +55,7 @@ def test__simulator_shear_yx__noise_changes_values_but_preserves_shape_and_grid(
 
     assert isinstance(dataset.shear_yx, ShearYX2DIrregular)
     assert np.asarray(dataset.shear_yx).shape == (2, 2)
-    assert dataset.positions is grid
+    np.testing.assert_array_equal(np.asarray(dataset.positions), np.asarray(grid))
     assert np.any(np.asarray(dataset.shear_yx) != np.asarray(truth))
     assert list(dataset.noise_map) == pytest.approx([0.3, 0.3])
 
