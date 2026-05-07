@@ -1,20 +1,15 @@
-from os import path
+from pathlib import Path
 
 import pytest
 
 from autolens.point.plot.point_dataset_plots import subplot_dataset
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 @pytest.fixture(name="plot_path")
 def make_point_dataset_plotter_setup():
-    return path.join(
-        "{}".format(path.dirname(path.realpath(__file__))),
-        "files",
-        "plots",
-        "point_dataset",
-    )
+    return directory / "files" / "plots" / "point_dataset"
 
 
 def test__subplot_dataset(point_dataset, plot_path, plot_patch):
@@ -23,4 +18,4 @@ def test__subplot_dataset(point_dataset, plot_path, plot_patch):
         output_path=plot_path,
         output_format="png",
     )
-    assert path.join(plot_path, "dataset_point.png") in plot_patch.paths
+    assert str(plot_path / "dataset_point.png") in plot_patch.paths

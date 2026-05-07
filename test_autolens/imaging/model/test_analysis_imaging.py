@@ -1,4 +1,4 @@
-from os import path
+from pathlib import Path
 import pytest
 
 import autofit as af
@@ -10,7 +10,7 @@ from autolens.imaging.model.result import ResultImaging
 from autolens import exc
 
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 def test__make_result__result_imaging_is_returned(masked_imaging_7x7):

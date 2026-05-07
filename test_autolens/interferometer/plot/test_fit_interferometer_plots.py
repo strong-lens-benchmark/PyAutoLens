@@ -1,4 +1,4 @@
-from os import path
+from pathlib import Path
 import pytest
 
 from autolens.interferometer.plot.fit_interferometer_plots import (
@@ -9,9 +9,7 @@ from autolens.interferometer.plot.fit_interferometer_plots import (
 
 @pytest.fixture(name="plot_path")
 def make_fit_interferometer_plotter_setup():
-    return path.join(
-        "{}".format(path.dirname(path.realpath(__file__))), "files", "plots", "fit"
-    )
+    return Path(__file__).resolve().parent / "files" / "plots" / "fit"
 
 
 def test__subplot_fit(
@@ -22,7 +20,7 @@ def test__subplot_fit(
         output_path=plot_path,
         output_format="png",
     )
-    assert path.join(plot_path, "fit.png") in plot_patch.paths
+    assert str(plot_path / "fit.png") in plot_patch.paths
 
 
 def test__subplot_fit_real_space(
@@ -36,4 +34,4 @@ def test__subplot_fit_real_space(
         output_path=plot_path,
         output_format="png",
     )
-    assert path.join(plot_path, "fit_real_space.png") in plot_patch.paths
+    assert str(plot_path / "fit_real_space.png") in plot_patch.paths

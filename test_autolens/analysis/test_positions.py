@@ -1,5 +1,5 @@
 import os
-from os import path
+from pathlib import Path
 import pytest
 
 from autoconf.dictable import output_to_json, from_json, from_dict
@@ -21,9 +21,7 @@ def test__check_positions_on_instantiation():
 
 
 def test__output_positions_info():
-    output_path = path.join(
-        "{}".format(os.path.dirname(os.path.realpath(__file__))), "files"
-    )
+    output_path = Path(__file__).resolve().parent / "files"
 
     positions_likelihood = al.PositionsLH(
         positions=al.Grid2DIrregular([(1.0, 2.0), (3.0, 4.0)]), threshold=0.1
@@ -35,7 +33,7 @@ def test__output_positions_info():
 
     positions_likelihood.output_positions_info(output_path=output_path, tracer=tracer)
 
-    positions_file = path.join(output_path, "positions.info")
+    positions_file = output_path / "positions.info"
 
     with open_(positions_file, "r") as f:
         output = f.readlines()

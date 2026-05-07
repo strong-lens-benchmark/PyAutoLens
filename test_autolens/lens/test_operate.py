@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
-from os import path
+from pathlib import Path
 
 import autogalaxy as ag
 import autolens as al
 
-test_path = path.join("{}".format(path.dirname(path.realpath(__file__))), "files")
+test_path = Path(__file__).resolve().parent / "files"
 
 
 def test__operate_image__blurred_images_2d_via_psf_from__for_tracer_gives_list_of_planes(

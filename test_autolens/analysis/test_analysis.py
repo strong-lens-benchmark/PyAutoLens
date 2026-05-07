@@ -1,5 +1,5 @@
 import numpy as np
-from os import path
+from pathlib import Path
 import os
 import pytest
 
@@ -10,7 +10,7 @@ import autofit as af
 import autolens as al
 from autolens import exc
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 def test__tracer_for_instance(analysis_imaging_7x7):

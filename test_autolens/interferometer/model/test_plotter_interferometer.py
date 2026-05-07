@@ -1,4 +1,4 @@
-from os import path
+from pathlib import Path
 
 import pytest
 
@@ -8,12 +8,12 @@ from autolens.interferometer.model.plotter import (
     PlotterInterferometer,
 )
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 @pytest.fixture(name="plot_path")
 def make_plotter_plotter_setup():
-    return path.join("{}".format(directory), "files")
+    return directory / "files"
 
 
 def test__fit_interferometer(
@@ -27,18 +27,18 @@ def test__fit_interferometer(
         fit=fit_interferometer_x2_plane_7x7,
     )
 
-    assert path.join(plot_path, "fit.png") in plot_patch.paths
-    assert path.join(plot_path, "fit_real_space.png") in plot_patch.paths
-    assert path.join(plot_path, "fit_dirty_images.png") in plot_patch.paths
+    assert str(plot_path / "fit.png") in plot_patch.paths
+    assert str(plot_path / "fit_real_space.png") in plot_patch.paths
+    assert str(plot_path / "fit_dirty_images.png") in plot_patch.paths
 
     image = al.ndarray_via_fits_from(
-        file_path=path.join(plot_path, "galaxy_images.fits"), hdu=0
+        file_path=plot_path / "galaxy_images.fits", hdu=0
     )
 
     assert image.shape == (5, 5)
 
     image = al.ndarray_via_fits_from(
-        file_path=path.join(plot_path, "dirty_images.fits"), hdu=0
+        file_path=plot_path / "dirty_images.fits", hdu=0
     )
 
     assert image.shape == (5, 5)

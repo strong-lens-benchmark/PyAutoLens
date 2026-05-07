@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
-from os import path
+from pathlib import Path
 
 import autolens as al
 
-test_path = path.join("{}".format(path.dirname(path.realpath(__file__))), "files")
+test_path = Path(__file__).resolve().parent / "files"
 
 
 def test__lp_linear_func_galaxy_dict_from(masked_imaging_7x7):

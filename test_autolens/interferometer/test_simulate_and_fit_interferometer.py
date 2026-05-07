@@ -1,5 +1,5 @@
 import os
-from os import path
+from pathlib import Path
 import shutil
 
 import autolens as al
@@ -34,27 +34,23 @@ def test__perfect_fit__chi_squared_0():
 
     dataset = simulator.via_tracer_from(tracer=tracer, grid=grid)
 
-    file_path = path.join(
-        "{}".format(path.dirname(path.realpath(__file__))),
-        "data_temp",
-        "simulate_and_fit",
-    )
+    file_path = Path(__file__).resolve().parent / "data_temp" / "simulate_and_fit"
 
     try:
         shutil.rmtree(file_path)
     except FileNotFoundError:
         pass
 
-    if path.exists(file_path) is False:
+    if not file_path.exists():
         os.makedirs(file_path)
 
     from autoarray.dataset.plot.interferometer_plots import fits_interferometer
 
     fits_interferometer(
         dataset=dataset,
-        data_path=path.join(file_path, "data.fits"),
-        noise_map_path=path.join(file_path, "noise_map.fits"),
-        uv_wavelengths_path=path.join(file_path, "uv_wavelengths.fits"),
+        data_path=file_path / "data.fits",
+        noise_map_path=file_path / "noise_map.fits",
+        uv_wavelengths_path=file_path / "uv_wavelengths.fits",
         overwrite=True,
     )
 
@@ -64,9 +60,9 @@ def test__perfect_fit__chi_squared_0():
     )
 
     dataset = al.Interferometer.from_fits(
-        data_path=path.join(file_path, "data.fits"),
-        noise_map_path=path.join(file_path, "noise_map.fits"),
-        uv_wavelengths_path=path.join(file_path, "uv_wavelengths.fits"),
+        data_path=file_path / "data.fits",
+        noise_map_path=file_path / "noise_map.fits",
+        uv_wavelengths_path=file_path / "uv_wavelengths.fits",
         real_space_mask=real_space_mask,
         transformer_class=al.TransformerDFT,
     )
@@ -101,11 +97,9 @@ def test__perfect_fit__chi_squared_0():
     )
     assert abs(fit.chi_squared) < 1.0e-4
 
-    file_path = path.join(
-        "{}".format(path.dirname(path.realpath(__file__))), "data_temp"
-    )
+    file_path = Path(__file__).resolve().parent / "data_temp"
 
-    if path.exists(file_path) is True:
+    if file_path.exists():
         shutil.rmtree(file_path)
 
 
