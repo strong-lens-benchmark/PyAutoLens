@@ -1,4 +1,4 @@
-from os import path
+from pathlib import Path
 import pytest
 
 import autofit as af
@@ -7,7 +7,7 @@ from autolens import exc
 
 from autolens.interferometer.model.result import ResultInterferometer
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 def test__make_result__result_interferometer_is_returned(interferometer_7):

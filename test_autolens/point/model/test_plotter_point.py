@@ -1,24 +1,23 @@
-import os
 import shutil
-from os import path
+from pathlib import Path
 
 import pytest
 from autolens.point.model.plotter import PlotterPoint
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 @pytest.fixture(name="plot_path")
 def make_plotter_plotter_setup():
-    return path.join("{}".format(directory), "files")
+    return directory / "files"
 
 
 def test__fit_point(fit_point_dataset_x2_plane, plot_path, plot_patch):
-    if os.path.exists(plot_path):
+    if plot_path.exists():
         shutil.rmtree(plot_path)
 
     plotter = PlotterPoint(image_path=plot_path)
 
     plotter.fit_point(fit=fit_point_dataset_x2_plane)
 
-    assert path.join(plot_path, "fit.png") in plot_patch.paths
+    assert str(plot_path / "fit.png") in plot_patch.paths

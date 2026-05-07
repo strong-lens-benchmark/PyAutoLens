@@ -1,4 +1,4 @@
-from os import path
+from pathlib import Path
 import os
 import pytest
 
@@ -9,7 +9,7 @@ import autofit as af
 import autolens as al
 from autolens import exc
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 def test__modify_before_fit__inversion_no_positions_likelihood__raises_exception(

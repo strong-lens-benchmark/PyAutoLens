@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import numpy as np
 import pytest
 
@@ -9,7 +9,7 @@ from autoarray import Array2D
 from autolens.analysis import result as res
 from autolens.imaging.model.result import ResultImaging
 
-directory = os.path.dirname(os.path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 def test__max_log_likelihood_tracer(

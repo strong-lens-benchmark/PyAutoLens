@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 import autolens as al
@@ -42,7 +40,7 @@ def test__csv_round_trip__positions_only(tmp_path):
         positions_noise_map=[0.05, 0.05, 0.1],
     )
 
-    file_path = os.path.join(tmp_path, "point_dataset.csv")
+    file_path = tmp_path / "point_dataset.csv"
     dataset.to_csv(file_path)
 
     loaded = al.PointDataset.from_csv(file_path)
@@ -63,7 +61,7 @@ def test__csv_round_trip__positions_and_fluxes(tmp_path):
         fluxes_noise_map=[0.1, 0.15],
     )
 
-    file_path = os.path.join(tmp_path, "point_dataset.csv")
+    file_path = tmp_path / "point_dataset.csv"
     dataset.to_csv(file_path)
 
     loaded = al.PointDataset.from_csv(file_path)
@@ -82,7 +80,7 @@ def test__csv_round_trip__positions_and_time_delays(tmp_path):
         time_delays_noise_map=[1.0, 2.5],
     )
 
-    file_path = os.path.join(tmp_path, "point_dataset.csv")
+    file_path = tmp_path / "point_dataset.csv"
     dataset.to_csv(file_path)
 
     loaded = al.PointDataset.from_csv(file_path)
@@ -103,7 +101,7 @@ def test__csv_round_trip__positions_fluxes_and_time_delays(tmp_path):
         time_delays_noise_map=[1.0, 2.5, 3.0],
     )
 
-    file_path = os.path.join(tmp_path, "point_dataset.csv")
+    file_path = tmp_path / "point_dataset.csv"
     dataset.to_csv(file_path)
 
     loaded = al.PointDataset.from_csv(file_path)
@@ -125,7 +123,7 @@ def test__csv_list_round_trip__heterogeneous_optional_columns(tmp_path):
         positions_noise_map=[0.1, 0.1],
     )
 
-    file_path = os.path.join(tmp_path, "point_datasets.csv")
+    file_path = tmp_path / "point_datasets.csv"
     al.output_to_csv([with_fluxes, positions_only], file_path)
 
     loaded = al.list_from_csv(file_path)
@@ -145,7 +143,7 @@ def test__csv_round_trip__redshift(tmp_path):
         redshift=2.5,
     )
 
-    file_path = os.path.join(tmp_path, "point_dataset.csv")
+    file_path = tmp_path / "point_dataset.csv"
     dataset.to_csv(file_path)
 
     loaded = al.PointDataset.from_csv(file_path)
@@ -167,7 +165,7 @@ def test__csv_list_round_trip__mixed_redshift_presence(tmp_path):
         positions_noise_map=[0.1, 0.1],
     )
 
-    file_path = os.path.join(tmp_path, "point_datasets.csv")
+    file_path = tmp_path / "point_datasets.csv"
     al.output_to_csv([with_redshift, without_redshift], file_path)
 
     loaded = al.list_from_csv(file_path)
@@ -180,7 +178,7 @@ def test__csv_list_round_trip__mixed_redshift_presence(tmp_path):
 
 
 def test__list_from_csv__inconsistent_redshift_raises(tmp_path):
-    file_path = os.path.join(tmp_path, "point_datasets.csv")
+    file_path = tmp_path / "point_datasets.csv"
     with open(file_path, "w") as f:
         f.write("name,y,x,positions_noise,redshift\n")
         f.write("source_0,0.0,0.0,0.05,1.5\n")
@@ -191,7 +189,7 @@ def test__list_from_csv__inconsistent_redshift_raises(tmp_path):
 
 
 def test__list_from_csv__partial_redshift_raises(tmp_path):
-    file_path = os.path.join(tmp_path, "point_datasets.csv")
+    file_path = tmp_path / "point_datasets.csv"
     with open(file_path, "w") as f:
         f.write("name,y,x,positions_noise,redshift\n")
         f.write("source_0,0.0,0.0,0.05,1.5\n")
@@ -215,7 +213,7 @@ def test__from_csv__multiple_groups_requires_name(tmp_path):
         ),
     ]
 
-    file_path = os.path.join(tmp_path, "point_datasets.csv")
+    file_path = tmp_path / "point_datasets.csv"
     al.output_to_csv(datasets, file_path)
 
     with pytest.raises(ValueError):

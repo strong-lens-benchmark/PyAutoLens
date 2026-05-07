@@ -1,11 +1,11 @@
-from os import path
+from pathlib import Path
 
 import autofit as af
 import autolens as al
 
 from autolens.point.model.result import ResultPoint
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 def _test__make_result__result_imaging_is_returned(point_dataset):

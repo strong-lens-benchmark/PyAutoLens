@@ -1,11 +1,11 @@
-from os import path
+from pathlib import Path
 
 import autofit as af
 import autolens as al
 
 from autolens.quantity.model.result import ResultQuantity
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 def test__make_result__result_quantity_is_returned(dataset_quantity_7x7_array_2d):

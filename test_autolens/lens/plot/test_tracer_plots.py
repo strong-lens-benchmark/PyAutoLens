@@ -1,4 +1,4 @@
-from os import path
+from pathlib import Path
 
 import pytest
 
@@ -11,17 +11,12 @@ from autolens.lens.plot.tracer_plots import (
     fits_source_plane_images,
 )
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 @pytest.fixture(name="plot_path")
 def make_tracer_plotter_setup():
-    return path.join(
-        "{}".format(path.dirname(path.realpath(__file__))),
-        "files",
-        "plots",
-        "tracer",
-    )
+    return directory / "files" / "plots" / "tracer"
 
 
 def test__subplot_tracer__two_plane_tracer__output_file_created(
@@ -33,7 +28,7 @@ def test__subplot_tracer__two_plane_tracer__output_file_created(
         output_path=plot_path,
         output_format="png",
     )
-    assert path.join(plot_path, "tracer.png") in plot_patch.paths
+    assert str(plot_path / "tracer.png") in plot_patch.paths
 
 
 def test__subplot_galaxies_images__two_plane_tracer__output_file_created(
@@ -45,7 +40,7 @@ def test__subplot_galaxies_images__two_plane_tracer__output_file_created(
         output_path=plot_path,
         output_format="png",
     )
-    assert path.join(plot_path, "galaxies_images.png") in plot_patch.paths
+    assert str(plot_path / "galaxies_images.png") in plot_patch.paths
 
 
 def test__subplot_lensed_images__two_plane_tracer__output_file_created(
@@ -57,7 +52,7 @@ def test__subplot_lensed_images__two_plane_tracer__output_file_created(
         output_path=plot_path,
         output_format="png",
     )
-    assert path.join(plot_path, "lensed_images.png") in plot_patch.paths
+    assert str(plot_path / "lensed_images.png") in plot_patch.paths
 
 
 def test__fits_tracer__two_plane_tracer__tracer_fits_file_written(

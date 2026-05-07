@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from os import path
+from pathlib import Path
 
 from autoconf.dictable import from_json, output_to_json
 import autofit as af
@@ -1046,9 +1046,7 @@ def test__instance_into_tracer__retains_dictionary_access():
 
 
 def test__output_to_and_load_from_json():
-    json_file = path.join(
-        "{}".format(path.dirname(path.realpath(__file__))), "files", "tracer.json"
-    )
+    json_file = Path(__file__).resolve().parent / "files" / "tracer.json"
 
     g0 = al.Galaxy(redshift=0.5, mass_profile=al.mp.IsothermalSph(einstein_radius=1.0))
     g1 = al.Galaxy(redshift=1.0)

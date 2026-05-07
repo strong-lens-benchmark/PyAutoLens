@@ -18,7 +18,7 @@ constraints (e.g. quad-lens quasars).
 """
 import numpy as np
 from typing import Optional
-from os import path
+from pathlib import Path
 
 import autoarray as aa
 import autofit as af
@@ -124,7 +124,7 @@ class PositionsLH:
 
         flag = "w+" if overwrite_file else "a+"
 
-        with open_(path.join(output_path, "positions.info"), flag) as f:
+        with open_(Path(output_path) / "positions.info", flag) as f:
 
             positions_fit = SourceMaxSeparation(
                 data=self.positions,

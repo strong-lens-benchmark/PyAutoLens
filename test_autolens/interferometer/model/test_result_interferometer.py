@@ -1,7 +1,7 @@
-import os
+from pathlib import Path
 
 
-directory = os.path.dirname(os.path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 class TestResultInterferometer:

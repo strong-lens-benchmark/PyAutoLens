@@ -1,10 +1,10 @@
-from os import path
+from pathlib import Path
 
 import pytest
 
 from autoconf import conf
 
-directory = path.dirname(path.realpath(__file__))
+directory = Path(__file__).resolve().parent
 
 
 class MockClass:
@@ -16,7 +16,7 @@ def make_label_config():
     print(directory, "config")
 
     config = conf.Config(
-        path.join(directory, "config"), output_path=path.join(directory, "output")
+        directory / "config", output_path=directory / "output"
     )
 
     return config["notation"]["label"]
