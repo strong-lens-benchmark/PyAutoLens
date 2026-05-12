@@ -44,6 +44,33 @@ def test__figure_of_merit__matches_correct_fit_given_galaxy_profiles(
     assert fit.log_likelihood == analysis_log_likelihood
 
 
+def test__log_likelihood_function__returns_figure_of_merit_for_pixelization(
+    masked_imaging_7x7,
+):
+    pixelization = al.Pixelization(
+        mesh=al.mesh.RectangularUniform(shape=(3, 3)),
+        regularization=al.reg.Constant(coefficient=1.0),
+    )
+
+    lens = al.Galaxy(
+        redshift=0.5,
+        mass=al.mp.IsothermalSph(einstein_radius=1.0),
+    )
+    source = al.Galaxy(redshift=1.0, pixelization=pixelization)
+
+    model = af.Collection(galaxies=af.Collection(lens=lens, source=source))
+    instance = model.instance_from_unit_vector([])
+
+    analysis = al.AnalysisImaging(dataset=masked_imaging_7x7, use_jax=False)
+    analysis_log_likelihood = analysis.log_likelihood_function(instance=instance)
+
+    tracer = analysis.tracer_via_instance_from(instance=instance)
+    fit = al.FitImaging(dataset=masked_imaging_7x7, tracer=tracer)
+
+    assert analysis_log_likelihood == pytest.approx(fit.figure_of_merit)
+    assert fit.figure_of_merit != pytest.approx(fit.log_likelihood, rel=1e-6)
+
+
 def test__positions__likelihood_overwrites__changes_likelihood(masked_imaging_7x7):
     lens = al.Galaxy(redshift=0.5, mass=al.mp.IsothermalSph(centre=(0.05, 0.05)))
     source = al.Galaxy(redshift=1.0, light=al.lp.SersicSph(centre=(0.05, 0.05)))

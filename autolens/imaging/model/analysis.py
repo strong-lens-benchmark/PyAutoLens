@@ -79,7 +79,7 @@ class AnalysisImaging(AnalysisDataset):
             return self.fit_from(instance=instance).figure_of_merit - log_likelihood_penalty
 
         try:
-            return self.fit_from(instance=instance).log_likelihood - log_likelihood_penalty
+            return self.fit_from(instance=instance).figure_of_merit - log_likelihood_penalty
         except Exception as e:
             raise af.exc.FitException
 
