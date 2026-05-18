@@ -72,6 +72,12 @@ from autolens.weak.plot.weak_dataset_plots import (
     plot_noise_map,
     subplot_weak_dataset,
 )
+from autolens.weak.plot.fit_weak_plots import (
+    plot_data_vs_model,
+    plot_residuals,
+    plot_chi_squared_map,
+    subplot_fit_weak,
+)
 
 from autolens.lens.plot.subhalo_plots import (
     subplot_detection_imaging,
