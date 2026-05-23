@@ -82,8 +82,13 @@ def test_total_source_flux_mujy_against_known_image():
             array=np.array([2.0, 3.0, 5.0])
         )
     )
+    # Both `tracer` and `tracer_linear_light_profiles_to_light_profiles`
+    # point at the same galaxies for non-linear fits — the conversion
+    # property is a no-op pass-through.
+    galaxies_namespace = SimpleNamespace(galaxies=[object(), source])
     fit = SimpleNamespace(
-        tracer=SimpleNamespace(galaxies=[object(), source]),
+        tracer=galaxies_namespace,
+        tracer_linear_light_profiles_to_light_profiles=galaxies_namespace,
         dataset=SimpleNamespace(grids=SimpleNamespace(lp=object())),
     )
     value = total_source_flux_mujy(fit=fit, magzero=25.0)
@@ -91,6 +96,38 @@ def test_total_source_flux_mujy_against_known_image():
     expected_ab_mag = -2.5 * np.log10(10.0) + 25.0
     expected_muJy = 10 ** ((23.9 - expected_ab_mag) / 2.5)
     assert value == pytest.approx(expected_muJy)
+
+
+def test_total_source_flux_mujy_uses_converted_tracer_for_linear_profiles():
+    """When the source has a linear light profile, ``fit.tracer.galaxies[-1]``
+    is un-solved (``image_2d_from`` returns zeros). The library must read from
+    ``fit.tracer_linear_light_profiles_to_light_profiles`` where intensities
+    are filled in from the inversion."""
+
+    unsolved_source = SimpleNamespace(
+        image_2d_from=lambda grid, xp=np: SimpleNamespace(array=np.zeros(4))
+    )
+    solved_source = SimpleNamespace(
+        image_2d_from=lambda grid, xp=np: SimpleNamespace(
+            array=np.array([1.0, 2.0, 3.0, 4.0])
+        )
+    )
+    fit = SimpleNamespace(
+        tracer=SimpleNamespace(galaxies=[object(), unsolved_source]),
+        tracer_linear_light_profiles_to_light_profiles=SimpleNamespace(
+            galaxies=[object(), solved_source]
+        ),
+        dataset=SimpleNamespace(grids=SimpleNamespace(lp=object())),
+    )
+
+    value = total_source_flux_mujy(fit=fit, magzero=25.0)
+
+    # Expected from the solved source (sum = 10):
+    expected_ab_mag = -2.5 * np.log10(10.0) + 25.0
+    expected_muJy = 10 ** ((23.9 - expected_ab_mag) / 2.5)
+    assert value == pytest.approx(expected_muJy)
+    # Confirm we did NOT read from the unsolved tracer (which would give 0).
+    assert value != 0.0
 
 
 def test_total_source_flux_mujy_missing_magzero_raises():
@@ -108,8 +145,12 @@ def test_magnification_is_lensed_over_intrinsic():
             return SimpleNamespace(array=np.array([2.0]))
 
     source = _FakeSourceGalaxy()
+    # Same fakes for tracer and the converted-tracer property (no-op
+    # pass-through for non-linear profile fixtures).
+    galaxies_namespace = SimpleNamespace(galaxies=[object(), source])
     fit = SimpleNamespace(
-        tracer=SimpleNamespace(galaxies=[object(), source]),
+        tracer=galaxies_namespace,
+        tracer_linear_light_profiles_to_light_profiles=galaxies_namespace,
         galaxy_image_dict={source: SimpleNamespace(array=np.array([10.0]))},
         dataset=SimpleNamespace(grids=SimpleNamespace(lp=object())),
     )

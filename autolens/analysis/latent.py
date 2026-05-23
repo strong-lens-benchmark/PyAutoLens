@@ -76,12 +76,18 @@ def total_lensed_source_flux_mujy(fit, magzero, xp=np):
 
 def total_source_flux_mujy(fit, magzero, xp=np):
     """
-    Source-plane intrinsic flux of the source galaxy, via
-    ``fit.tracer.galaxies[-1].image_2d_from(grid=fit.dataset.grids.lp)``.
+    Source-plane intrinsic flux of the source galaxy, in microjanskies.
+
+    Reads from ``fit.tracer_linear_light_profiles_to_light_profiles`` rather
+    than ``fit.tracer`` so that linear light profiles (whose ``intensity``
+    is solved by the inversion at fit time) contribute the correct image.
+    For non-linear fits this property is a no-op pass-through (returns
+    ``fit.tracer``), so the numpy-only and JAX paths both work uniformly.
     """
     _require_magzero(magzero, "total_source_flux_mujy")
     try:
-        source_image = fit.tracer.galaxies[-1].image_2d_from(
+        tracer = fit.tracer_linear_light_profiles_to_light_profiles
+        source_image = tracer.galaxies[-1].image_2d_from(
             grid=fit.dataset.grids.lp, xp=xp
         )
     except (AttributeError, IndexError):
