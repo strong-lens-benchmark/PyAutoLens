@@ -21,7 +21,7 @@ from autolens.lens.tracer import Tracer
 
 
 class SimulatorInterferometer(aa.SimulatorInterferometer):
-    def via_tracer_from(self, tracer, grid):
+    def via_tracer_from(self, tracer, grid, xp=None):
         """
         Returns a realistic simulated image by applying effects to a plain simulated image.
 
@@ -42,11 +42,14 @@ class SimulatorInterferometer(aa.SimulatorInterferometer):
             A seed for random noise_maps generation
         """
 
-        image = tracer.image_2d_from(grid=grid)
+        if xp is None:
+            xp = self._xp
 
-        return self.via_image_from(image=image)
+        image = tracer.image_2d_from(grid=grid, xp=xp)
 
-    def via_galaxies_from(self, galaxies, grid):
+        return self.via_image_from(image=image, xp=xp)
+
+    def via_galaxies_from(self, galaxies, grid, xp=None):
         """Simulate imaging data for this data, as follows:
 
         1)  Setup the image-plane grid of the Imaging arrays, which defines the coordinates used for the ray-tracing.
@@ -64,7 +67,7 @@ class SimulatorInterferometer(aa.SimulatorInterferometer):
 
         tracer = Tracer(galaxies=galaxies)
 
-        return self.via_tracer_from(tracer=tracer, grid=grid)
+        return self.via_tracer_from(tracer=tracer, grid=grid, xp=xp)
 
     def via_deflections_and_galaxies_from(
         self, deflections: aa.VectorYX2D, galaxies: List[ag.Galaxy]
