@@ -358,6 +358,42 @@ def subplot_fit(
     save_figure(fig, path=output_path, filename=f"fit{plane_index_tag}", format=output_format)
 
 
+def _to_native_np(array):
+    """Convert an autoarray Array2D to a plain numpy 2D array.
+
+    Uses direct boolean-mask indexing instead of the numba-accelerated
+    ``array_2d_via_indexes_from`` which has unexpected overhead (~0.4s
+    per call for 15k pixels).
+    """
+    try:
+        mask = array.mask
+        slim = np.asarray(array.array)
+        native = np.zeros(mask.shape_native)
+        native[~np.asarray(mask)] = slim
+        return native
+    except AttributeError:
+        arr = np.asarray(array)
+        if arr.ndim == 2:
+            return arr
+        return arr
+
+
+def _quick_imshow(ax, array_2d, title, extent, cmap, vmin=None, vmax=None):
+    """Minimal imshow for quick-update panels — no overlays, no colorbars."""
+    import matplotlib.pyplot as plt
+
+    if array_2d is None:
+        ax.axis("off")
+        return
+    im = ax.imshow(
+        array_2d, cmap=cmap, vmin=vmin, vmax=vmax,
+        extent=extent, aspect="auto", origin="lower",
+    )
+    ax.set_title(title, fontsize=8)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+
 def subplot_fit_quick(
     fit,
     output_path: Optional[str] = None,
@@ -379,15 +415,18 @@ def subplot_fit_quick(
     * Normalised residual map (symmetric scale)
     * Lens-light-subtracted image
     * Source model image
-    * Source plane image (mid zoom)
+    * Source plane image
 
-    This is a lighter alternative to :func:`subplot_fit` (12 panels)
-    intended for the quick-update visualization path during sampling,
-    where render speed matters more than completeness.
+    Uses raw ``imshow`` calls on pre-converted numpy arrays to bypass
+    the autoarray/autogalaxy plotting pipeline — the repeated
+    ``array.native`` conversions in that pipeline cost ~4s for pixelized
+    source fits. This path renders in <1s.
 
     For single-plane tracers the function delegates to
     :func:`subplot_fit_x1_plane`.
     """
+    import matplotlib.pyplot as plt
+
     if len(fit.tracer.planes) == 1:
         return subplot_fit_x1_plane(
             fit, output_path=output_path,
@@ -396,68 +435,124 @@ def subplot_fit_quick(
         )
 
     final_plane_index = len(fit.tracer.planes) - 1
-    source_vmax = _get_source_vmax(fit)
+
+    # Pre-convert all arrays to numpy 2D. model_data and
+    # subtracted_images_of_planes_list are @property (not cached) — each
+    # access recomputes the entire inversion. Access model_data ONCE and
+    # derive everything else from the cached per-plane images.
+    mask_bool = ~np.asarray(fit.mask)
+    shape_native = fit.mask.shape_native
+
+    def _fill(slim):
+        out = np.zeros(shape_native)
+        out[mask_bool] = np.asarray(slim)
+        return out
+
+    data_slim = np.asarray(fit.data)
+    noise_slim = np.asarray(fit.noise_map)
+    data = _fill(data_slim)
+
+    # model_images_of_planes_list triggers model_data once internally
+    # and caches the per-plane images — much cheaper than accessing
+    # model_data + subtracted_images separately (each recomputes).
+    try:
+        plane_images = fit.model_images_of_planes_list
+        lens_model_slim = np.asarray(plane_images[0])
+        source_model_slim = np.asarray(plane_images[final_plane_index])
+        model_slim = lens_model_slim + source_model_slim
+    except (IndexError, AttributeError):
+        model_slim = np.asarray(fit.model_data)
+        lens_model_slim = None
+        source_model_slim = None
+
+    model = _fill(model_slim)
+
+    # Compute subtracted = data - lens_model (no property access)
+    if lens_model_slim is not None:
+        subtracted = _fill(data_slim - lens_model_slim)
+    else:
+        subtracted = None
+
+    source_model = _fill(source_model_slim) if source_model_slim is not None else None
+    source_vmax = float(np.max(source_model)) if source_model is not None else None
+
+    # Normalized residual from slim arrays (no .native conversion)
+    resid_slim = data_slim - model_slim
+    with np.errstate(divide="ignore", invalid="ignore"):
+        norm_resid_slim = resid_slim / noise_slim
+    norm_resid_slim = np.where(np.isfinite(norm_resid_slim), norm_resid_slim, 0.0)
+    norm_resid = _fill(norm_resid_slim)
+    extent = fit.mask.geometry.extent
+
+    if colormap is None:
+        try:
+            from autoarray.plot.utils import _default_colormap
+            colormap = _default_colormap()
+        except Exception:
+            colormap = "default"
 
     _pf = (lambda t: f"{title_prefix.rstrip()} {t}") if title_prefix else (lambda t: t)
-    fig, axes = subplots(2, 3, figsize=conf_subplot_figsize(2, 3))
+    fig, axes = plt.subplots(2, 3, figsize=(12, 8))
     axes_flat = list(axes.flatten())
 
     # Top row: Data, Model Image, Normalized Residual Map
-    plot_array(
-        array=fit.data, ax=axes_flat[0], title=_pf("Data"), colormap=colormap,
+    _quick_imshow(axes_flat[0], data, _pf("Data"), extent, colormap)
+    _quick_imshow(axes_flat[1], model, _pf("Model Image"), extent, colormap)
+
+    finite = norm_resid[np.isfinite(norm_resid)]
+    abs_max = float(np.max(np.abs(finite))) if len(finite) > 0 else 1.0
+    _quick_imshow(axes_flat[2], norm_resid, _pf("Normalized Residual"),
+                  extent, colormap, vmin=-abs_max, vmax=abs_max)
+
+    # Bottom row: Lens Light Subtracted, Source Model Image, Source Plane
+    _quick_imshow(axes_flat[3], subtracted, _pf("Lens Light Subtracted"),
+                  extent, colormap,
+                  vmin=0.0 if source_vmax else None, vmax=source_vmax)
+
+    _quick_imshow(axes_flat[4], source_model, _pf("Source Model Image"),
+                  extent, colormap, vmax=source_vmax)
+
+    # Source plane: fast path for parametric, inversion fallback for pixelized
+    tracer_viz = fit.tracer_linear_light_profiles_to_light_profiles
+    source_galaxies = tracer_viz.planes[final_plane_index]
+    has_pixelization = any(
+        hasattr(g, "pixelization") and g.pixelization is not None
+        for g in source_galaxies
     )
 
-    plot_array(
-        array=fit.model_data, ax=axes_flat[1], title=_pf("Model Image"),
-        colormap=colormap, lines=image_plane_lines,
-        line_colors=image_plane_line_colors,
-    )
-
-    norm_resid = fit.normalized_residual_map
-    _abs_max = _symmetric_vmax(norm_resid)
-    plot_array(
-        array=norm_resid, ax=axes_flat[2], title=_pf("Normalized Residual Map"),
-        colormap=colormap, vmin=-_abs_max, vmax=_abs_max,
-    )
-
-    # Bottom row: Lens Light Subtracted, Source Model Image, Source Plane (Mid Zoom)
-    try:
-        subtracted_img = fit.subtracted_images_of_planes_list[final_plane_index]
-    except (IndexError, AttributeError):
-        subtracted_img = None
-    if subtracted_img is not None:
-        plot_array(
-            array=subtracted_img, ax=axes_flat[3],
-            title=_pf("Lens Light Subtracted"), colormap=colormap,
-            vmin=0.0 if source_vmax is not None else None, vmax=source_vmax,
-        )
+    if not has_pixelization:
+        try:
+            quick_grid = aa.Grid2D.uniform(
+                shape_native=(50, 50),
+                pixel_scales=fit.mask.pixel_scales,
+                origin=fit.mask.origin,
+            )
+            source_img = plane_image_from(
+                galaxies=source_galaxies,
+                grid=quick_grid,
+                zoom_to_brightest=False,
+            )
+            src_np = _to_native_np(source_img)
+            _quick_imshow(axes_flat[5], src_np, _pf("Source Plane"),
+                          quick_grid.geometry.extent, colormap, vmax=source_vmax)
+        except Exception:
+            axes_flat[5].axis("off")
     else:
-        axes_flat[3].axis("off")
+        try:
+            inversion = fit.inversion
+            mapper_list = inversion.cls_list_from(cls=Mapper)
+            mapper = mapper_list[final_plane_index - 1] if final_plane_index > 0 else mapper_list[0]
+            pixel_values = inversion.reconstruction_dict[mapper]
+            plot_mapper(
+                mapper, solution_vector=pixel_values, ax=axes_flat[5],
+                title=_pf("Source Reconstruction"), colormap=colormap,
+                vmax=source_vmax, zoom_to_brightest=False,
+            )
+        except Exception:
+            axes_flat[5].axis("off")
 
-    try:
-        source_model_img = fit.model_images_of_planes_list[final_plane_index]
-    except (IndexError, AttributeError):
-        source_model_img = None
-    if source_model_img is not None:
-        plot_array(
-            array=source_model_img, ax=axes_flat[4],
-            title=_pf("Source Model Image"), colormap=colormap,
-            vmax=source_vmax, lines=image_plane_lines,
-            line_colors=image_plane_line_colors,
-        )
-    else:
-        axes_flat[4].axis("off")
-
-    _plot_source_plane(
-        fit, axes_flat[5], final_plane_index, zoom_to_brightest=True,
-        colormap=colormap, title=_pf("Source Plane (Mid Zoom)"),
-        lines=source_plane_lines, line_colors=source_plane_line_colors,
-        vmax=source_vmax, zoom_extent_scale=2.0,
-    )
-
-    hide_unused_axes(axes_flat)
-    tight_layout()
-    save_figure(fig, path=output_path, filename="fit_quick", format=output_format, dpi=200)
+    fig.tight_layout(pad=0.5)
+    save_figure(fig, path=output_path, filename="fit_quick", format=output_format, dpi=100)
 
 
 def subplot_fit_x1_plane(
