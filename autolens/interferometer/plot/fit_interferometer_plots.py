@@ -328,33 +328,6 @@ def subplot_fit_dirty_images(
     save_figure(fig, path=output_path, filename="fit_dirty_images", format=output_format)
 
 
-def _to_native_np_interf(array):
-    """Convert an autoarray Array2D to a plain numpy 2D array."""
-    try:
-        mask = array.mask
-        slim = np.asarray(array.array)
-        native = np.zeros(mask.shape_native)
-        native[~np.asarray(mask)] = slim
-        return native
-    except AttributeError:
-        arr = np.asarray(array)
-        return arr if arr.ndim == 2 else arr
-
-
-def _quick_imshow_interf(ax, array_2d, title, extent, cmap, vmin=None, vmax=None):
-    """Minimal imshow for quick-update panels."""
-    if array_2d is None:
-        ax.axis("off")
-        return
-    ax.imshow(
-        array_2d, cmap=cmap, vmin=vmin, vmax=vmax,
-        extent=extent, aspect="auto", origin="lower",
-    )
-    ax.set_title(title, fontsize=8)
-    ax.set_xticks([])
-    ax.set_yticks([])
-
-
 def subplot_fit_quick(
     fit,
     output_path: Optional[str] = None,
@@ -374,101 +347,51 @@ def subplot_fit_quick(
     * Visibility Normalised Residual (Imag) vs UV distance
     * Source plane image / reconstruction
 
-    Uses raw ``imshow`` and ``scatter`` calls on pre-converted numpy
-    arrays for sub-second rendering.
+    Uses the standard ``plot_array`` / ``plot_yx`` / ``_plot_source_plane``
+    for consistent styling. Dirty images are passed directly as autoarray
+    ``Array2D`` objects so axes show arcsecond coordinates.
     """
-    import matplotlib.pyplot as plt
-
-    # Pre-convert dirty images to numpy 2D (each is an inverse FFT)
-    dirty_image = _to_native_np_interf(fit.dirty_image)
-    dirty_model = _to_native_np_interf(fit.dirty_model_image)
-    dirty_norm_resid = _to_native_np_interf(fit.dirty_normalized_residual_map)
-
-    extent = fit.dataset.real_space_mask.geometry.extent
-
-    if colormap is None:
-        try:
-            from autoarray.plot.utils import _default_colormap
-            colormap = _default_colormap()
-        except Exception:
-            colormap = "default"
-
     _pf = (lambda t: f"{title_prefix.rstrip()} {t}") if title_prefix else (lambda t: t)
-    fig, axes = plt.subplots(2, 3, figsize=(12, 8))
+    fig, axes = subplots(2, 3, figsize=conf_subplot_figsize(2, 3))
     axes_flat = list(axes.flatten())
 
     # Top row: Dirty Image, Dirty Model Image, Dirty Normalized Residual
-    _quick_imshow_interf(axes_flat[0], dirty_image, _pf("Dirty Image"), extent, colormap)
-    _quick_imshow_interf(axes_flat[1], dirty_model, _pf("Dirty Model Image"), extent, colormap)
+    plot_array(array=fit.dirty_image, ax=axes_flat[0],
+               title=_pf("Dirty Image"), colormap=colormap)
 
-    finite = dirty_norm_resid[np.isfinite(dirty_norm_resid)]
-    abs_max = float(np.max(np.abs(finite))) if len(finite) > 0 else 1.0
-    _quick_imshow_interf(
-        axes_flat[2], dirty_norm_resid, _pf("Dirty Norm Residual"),
-        extent, colormap, vmin=-abs_max, vmax=abs_max,
-    )
+    plot_array(array=fit.dirty_model_image, ax=axes_flat[1],
+               title=_pf("Dirty Model Image"), colormap=colormap)
+
+    plot_array(array=fit.dirty_normalized_residual_map, ax=axes_flat[2],
+               title=_pf("Dirty Norm Residual"), colormap=colormap,
+               symmetric=True)
 
     # Bottom row: Visibility residuals (Real/Imag scatter) + Source Plane
     norm_resid_vis = np.asarray(fit.normalized_residual_map)
     uv_dist = np.asarray(fit.dataset.uv_distances) / 1e3
 
-    ax_real = axes_flat[3]
-    ax_real.scatter(uv_dist, np.real(norm_resid_vis), s=0.5, alpha=0.3, c="k", rasterized=True)
-    ax_real.set_title(_pf("Vis Norm Resid (Real)"), fontsize=8)
-    ax_real.set_xlabel("UV dist (kλ)", fontsize=7)
-    ax_real.set_ylabel("σ", fontsize=7)
-    ax_real.tick_params(labelsize=6)
-
-    ax_imag = axes_flat[4]
-    ax_imag.scatter(uv_dist, np.imag(norm_resid_vis), s=0.5, alpha=0.3, c="k", rasterized=True)
-    ax_imag.set_title(_pf("Vis Norm Resid (Imag)"), fontsize=8)
-    ax_imag.set_xlabel("UV dist (kλ)", fontsize=7)
-    ax_imag.set_ylabel("σ", fontsize=7)
-    ax_imag.tick_params(labelsize=6)
-
-    # Source plane: parametric → small grid, pixelized → plot_mapper
-    tracer_viz = fit.tracer_linear_light_profiles_to_light_profiles
-    final_plane_index = len(tracer_viz.planes) - 1
-    source_galaxies = tracer_viz.planes[final_plane_index]
-    has_pixelization = any(
-        hasattr(g, "pixelization") and g.pixelization is not None
-        for g in source_galaxies
+    plot_yx(
+        y=np.real(norm_resid_vis), x=uv_dist, ax=axes_flat[3],
+        title=_pf("Vis Norm Resid (Real)"),
+        xtick_suffix='"', ytick_suffix=r"$\sigma$",
+        plot_axis_type="scatter",
     )
 
-    if not has_pixelization:
-        try:
-            rs_mask = fit.dataset.real_space_mask
-            quick_grid = aa.Grid2D.uniform(
-                shape_native=(50, 50),
-                pixel_scales=rs_mask.pixel_scales,
-                origin=rs_mask.origin,
-            )
-            source_img = plane_image_from(
-                galaxies=source_galaxies, grid=quick_grid,
-                zoom_to_brightest=False,
-            )
-            src_np = _to_native_np_interf(source_img)
-            _quick_imshow_interf(
-                axes_flat[5], src_np, _pf("Source Plane"),
-                quick_grid.geometry.extent, colormap,
-            )
-        except Exception:
-            axes_flat[5].axis("off")
-    else:
-        try:
-            inversion = fit.inversion
-            mapper_list = inversion.cls_list_from(cls=Mapper)
-            mapper = mapper_list[final_plane_index - 1] if final_plane_index > 0 else mapper_list[0]
-            pixel_values = inversion.reconstruction_dict[mapper]
-            plot_mapper(
-                mapper, solution_vector=pixel_values, ax=axes_flat[5],
-                title=_pf("Source Reconstruction"), colormap=colormap,
-                zoom_to_brightest=False,
-            )
-        except Exception:
-            axes_flat[5].axis("off")
+    plot_yx(
+        y=np.imag(norm_resid_vis), x=uv_dist, ax=axes_flat[4],
+        title=_pf("Vis Norm Resid (Imag)"),
+        xtick_suffix='"', ytick_suffix=r"$\sigma$",
+        plot_axis_type="scatter",
+    )
 
-    fig.tight_layout(pad=0.5)
+    # Source plane: reuse _plot_source_plane (handles both parametric and pixelized)
+    final_plane_index = len(fit.tracer.planes) - 1
+    _plot_source_plane(
+        fit, axes_flat[5], final_plane_index, zoom_to_brightest=False,
+        colormap=colormap, title=_pf("Source Plane"),
+    )
+
+    tight_layout()
     save_figure(fig, path=output_path, filename="fit_quick", format=output_format, dpi=100)
 
 
