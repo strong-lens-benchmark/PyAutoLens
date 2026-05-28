@@ -7,13 +7,17 @@ import pytest
 
 import autofit as af
 import autolens as al
+from autolens.analysis import latent as _latent_module
 from autolens.analysis.latent import (
     LATENT_FUNCTIONS,
     effective_einstein_radius,
     latent_keys_enabled,
     magnification,
+    total_lens_flux,
     total_lens_flux_mujy,
+    total_lensed_source_flux,
     total_lensed_source_flux_mujy,
+    total_source_flux,
     total_source_flux_mujy,
 )
 
@@ -56,9 +60,34 @@ def test_total_lens_flux_mujy_returns_nan_when_no_light_profile():
     assert np.isnan(total_lens_flux_mujy(fit=fit, magzero=25.0))
 
 
-def test_total_lens_flux_mujy_missing_magzero_raises():
-    with pytest.raises(ValueError, match="magzero"):
-        total_lens_flux_mujy(fit=MagicMock(), magzero=None)
+def test_total_lens_flux_mujy_missing_magzero_returns_nan_and_warns(caplog):
+    _latent_module._MAGZERO_WARNED.discard("total_lens_flux_mujy")
+    caplog.set_level(logging.WARNING)
+    fit = _fit_with_galaxy_images({0: [1.0, 2.0, 3.0, 4.0]})
+
+    value = total_lens_flux_mujy(fit=fit, magzero=None)
+
+    assert np.isnan(value)
+    assert any(
+        "magzero" in rec.message and "total_lens_flux_mujy" in rec.message
+        for rec in caplog.records
+    )
+
+
+def test_total_lens_flux_against_known_image():
+    fit = _fit_with_galaxy_images({0: [1.0, 2.0, 3.0, 4.0]})
+
+    # Raw sum — no AB-mag conversion. `magzero` accepted but ignored.
+    assert total_lens_flux(fit=fit) == pytest.approx(10.0)
+    assert total_lens_flux(fit=fit, magzero=25.0) == pytest.approx(10.0)
+
+
+def test_total_lens_flux_returns_nan_when_no_light_profile():
+    fit = MagicMock()
+    fit.galaxy_image_dict.__getitem__.side_effect = KeyError("no light")
+    fit.tracer.galaxies = [object()]
+
+    assert np.isnan(total_lens_flux(fit=fit))
 
 
 def test_total_lensed_source_flux_mujy_against_known_image():
@@ -71,9 +100,24 @@ def test_total_lensed_source_flux_mujy_against_known_image():
     assert value == pytest.approx(expected_muJy)
 
 
-def test_total_lensed_source_flux_mujy_missing_magzero_raises():
-    with pytest.raises(ValueError, match="magzero"):
-        total_lensed_source_flux_mujy(fit=MagicMock(), magzero=None)
+def test_total_lensed_source_flux_mujy_missing_magzero_returns_nan_and_warns(caplog):
+    _latent_module._MAGZERO_WARNED.discard("total_lensed_source_flux_mujy")
+    caplog.set_level(logging.WARNING)
+    fit = _fit_with_galaxy_images({0: [0.0, 0.0], 1: [5.0, 5.0]})
+
+    value = total_lensed_source_flux_mujy(fit=fit, magzero=None)
+
+    assert np.isnan(value)
+    assert any(
+        "magzero" in rec.message and "total_lensed_source_flux_mujy" in rec.message
+        for rec in caplog.records
+    )
+
+
+def test_total_lensed_source_flux_against_known_image():
+    fit = _fit_with_galaxy_images({0: [0.0, 0.0], 1: [5.0, 5.0]})
+
+    assert total_lensed_source_flux(fit=fit) == pytest.approx(10.0)
 
 
 def test_total_source_flux_mujy_against_known_image():
@@ -130,9 +174,62 @@ def test_total_source_flux_mujy_uses_converted_tracer_for_linear_profiles():
     assert value != 0.0
 
 
-def test_total_source_flux_mujy_missing_magzero_raises():
-    with pytest.raises(ValueError, match="magzero"):
-        total_source_flux_mujy(fit=MagicMock(), magzero=None)
+def test_total_source_flux_mujy_missing_magzero_returns_nan_and_warns(caplog):
+    _latent_module._MAGZERO_WARNED.discard("total_source_flux_mujy")
+    caplog.set_level(logging.WARNING)
+
+    # Source-plane fit fixture (matches the positive test above).
+    source = SimpleNamespace(
+        image_2d_from=lambda grid, xp=np: SimpleNamespace(
+            array=np.array([2.0, 3.0, 5.0])
+        )
+    )
+    galaxies_namespace = SimpleNamespace(galaxies=[object(), source])
+    fit = SimpleNamespace(
+        tracer=galaxies_namespace,
+        tracer_linear_light_profiles_to_light_profiles=galaxies_namespace,
+        dataset=SimpleNamespace(grids=SimpleNamespace(lp=object())),
+    )
+
+    value = total_source_flux_mujy(fit=fit, magzero=None)
+
+    assert np.isnan(value)
+    assert any(
+        "magzero" in rec.message and "total_source_flux_mujy" in rec.message
+        for rec in caplog.records
+    )
+
+
+def test_total_source_flux_against_known_image():
+    source = SimpleNamespace(
+        image_2d_from=lambda grid, xp=np: SimpleNamespace(
+            array=np.array([2.0, 3.0, 5.0])
+        )
+    )
+    galaxies_namespace = SimpleNamespace(galaxies=[object(), source])
+    fit = SimpleNamespace(
+        tracer=galaxies_namespace,
+        tracer_linear_light_profiles_to_light_profiles=galaxies_namespace,
+        dataset=SimpleNamespace(grids=SimpleNamespace(lp=object())),
+    )
+
+    assert total_source_flux(fit=fit) == pytest.approx(10.0)
+
+
+def test_maybe_magzero_warn_logs_only_once_per_name(caplog):
+    """Sibling of the per-latent NaN/warn tests — asserts the module-level
+    dedup set really suppresses repeat warnings for the same name."""
+    _latent_module._MAGZERO_WARNED.discard("total_lens_flux_mujy")
+    caplog.set_level(logging.WARNING)
+
+    fit = _fit_with_galaxy_images({0: [1.0, 2.0, 3.0, 4.0]})
+    for _ in range(3):
+        total_lens_flux_mujy(fit=fit, magzero=None)
+
+    matching = [
+        r for r in caplog.records if "total_lens_flux_mujy" in r.message
+    ]
+    assert len(matching) == 1
 
 
 def test_magnification_is_lensed_over_intrinsic():
@@ -242,6 +339,9 @@ def test_latent_keys_enabled_drops_unknown_with_warning(caplog):
 
 def test_latent_functions_registry_keys():
     assert set(LATENT_FUNCTIONS) == {
+        "total_lens_flux",
+        "total_lensed_source_flux",
+        "total_source_flux",
         "total_lens_flux_mujy",
         "total_lensed_source_flux_mujy",
         "total_source_flux_mujy",
@@ -272,9 +372,15 @@ def test_analysis_imaging_compute_latent_variables_aligns_with_keys(
 
     assert isinstance(values, tuple)
     assert len(values) == len(analysis.LATENT_KEYS)
-    # Only total_lens_flux_mujy is enabled in test_autolens/config/latent.yaml.
-    assert analysis.LATENT_KEYS == ["total_lens_flux_mujy"]
-    assert np.isfinite(values[0])
+    # test_autolens/config/latent.yaml enables the three raw-flux keys plus
+    # total_lens_flux_mujy. magzero=25.0 above keeps the µJy column finite.
+    assert analysis.LATENT_KEYS == [
+        "total_lens_flux",
+        "total_lensed_source_flux",
+        "total_source_flux",
+        "total_lens_flux_mujy",
+    ]
+    assert all(np.isfinite(v) for v in values)
 
 
 def test_analysis_imaging_compute_latent_variables_raises_when_empty(monkeypatch):
@@ -291,7 +397,12 @@ def test_analysis_imaging_compute_latent_variables_raises_when_empty(monkeypatch
 
 def test_analysis_imaging_latent_keys_property_reads_config():
     # The autouse `set_config_path` fixture in test_autolens/conftest.py
-    # pushes test_autolens/config/latent.yaml — only total_lens_flux_mujy
-    # is enabled there.
+    # pushes test_autolens/config/latent.yaml — the three raw-flux keys
+    # and total_lens_flux_mujy are enabled there.
     analysis = al.AnalysisImaging(dataset=MagicMock(), use_jax=False)
-    assert analysis.LATENT_KEYS == ["total_lens_flux_mujy"]
+    assert analysis.LATENT_KEYS == [
+        "total_lens_flux",
+        "total_lensed_source_flux",
+        "total_source_flux",
+        "total_lens_flux_mujy",
+    ]
