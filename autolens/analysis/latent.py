@@ -9,10 +9,13 @@ The registry is dataset-agnostic; a future ``AnalysisInterferometer``
 wiring can reuse it without code duplication.
 
 User-level enable/disable: each key in ``autolens/config/latent.yaml`` maps
-to a bool. All five default ``false`` because ``compute_latent_samples``
-runs on every fit (``latent_after_fit: true`` in autofit's default
-``output.yaml``) and the latents that require ``magzero`` would otherwise
-crash existing fits where ``magzero`` is not passed.
+to a bool. The raw-flux latents (``total_lens_flux``,
+``total_lensed_source_flux``, ``total_source_flux``) require no instrument
+inputs and default ``true``. The microjansky variants require ``magzero``
+on the Analysis; they default ``false`` and return NaN with a single
+warning per process if enabled without ``magzero`` (rather than raising,
+which would kill the post-fit metric write of an otherwise-converged
+search).
 """
 import logging
 from typing import Callable, Dict, List, Optional
@@ -27,14 +30,84 @@ from autogalaxy.imaging.model.latent import (
 
 logger = logging.getLogger(__name__)
 
+# Latent names that have already emitted a "magzero missing" warning in this
+# process. Used by ``_maybe_magzero_warn`` to deduplicate the message across
+# the many fit evaluations a single search performs.
+_MAGZERO_WARNED: set = set()
 
-def _require_magzero(magzero, name):
+
+def _maybe_magzero_warn(magzero, name) -> bool:
+    """
+    Return True when ``magzero`` is missing (and emit a one-time-per-process
+    warning for ``name``); False otherwise.
+
+    Callers that get True must early-return ``xp.nan`` — the µJy conversion
+    is meaningless without a zero-point, but a search-killing raise here
+    would discard otherwise-converged fits.
+    """
     if magzero is None:
-        raise ValueError(
-            f"magzero must be passed to the Analysis via kwargs to compute "
-            f"the '{name}' latent. Disable it in config/latent.yaml or "
-            f"pass magzero=<value>."
+        if name not in _MAGZERO_WARNED:
+            logger.warning(
+                "magzero not set on Analysis; '%s' latent will be NaN. "
+                "Pass magzero=<value> to AnalysisImaging to enable it, "
+                "or disable in config/latent.yaml to silence this warning.",
+                name,
+            )
+            _MAGZERO_WARNED.add(name)
+        return True
+    return False
+
+
+def total_lens_flux(fit, magzero=None, xp=np):
+    """
+    Total integrated flux of the lens galaxy (``fit.tracer.galaxies[0]``),
+    in the raw image units the fit was performed in.
+
+    Requires no instrument inputs — ``magzero`` is accepted for uniform
+    dispatcher context but ignored. See the workspace flux guide
+    (``scripts/guides/units/flux.py``) for how to convert to microjanskies.
+
+    Returns NaN when galaxy 0 has no light profile.
+    """
+    try:
+        image = fit.galaxy_image_dict[fit.tracer.galaxies[0]]
+    except (AttributeError, KeyError, IndexError):
+        return xp.nan
+    return xp.sum(image.array)
+
+
+def total_lensed_source_flux(fit, magzero=None, xp=np):
+    """
+    Image-plane integrated flux of the source galaxy after lensing
+    (``fit.galaxy_image_dict[fit.tracer.galaxies[-1]]``), in raw image
+    units. ``magzero`` is accepted but ignored.
+    """
+    try:
+        image = fit.galaxy_image_dict[fit.tracer.galaxies[-1]]
+    except (AttributeError, KeyError, IndexError):
+        return xp.nan
+    return xp.sum(image.array)
+
+
+def total_source_flux(fit, magzero=None, xp=np):
+    """
+    Source-plane intrinsic flux of the source galaxy, in raw image units.
+
+    Reads from ``fit.tracer_linear_light_profiles_to_light_profiles`` so
+    that linear light profiles (whose ``intensity`` is solved by the
+    inversion) contribute the correct image — same tracer-conversion
+    handling as :func:`total_source_flux_mujy`.
+
+    ``magzero`` is accepted but ignored.
+    """
+    try:
+        tracer = fit.tracer_linear_light_profiles_to_light_profiles
+        source_image = tracer.galaxies[-1].image_2d_from(
+            grid=fit.dataset.grids.lp, xp=xp
         )
+    except (AttributeError, IndexError):
+        return xp.nan
+    return xp.sum(source_image.array)
 
 
 def total_lens_flux_mujy(fit, magzero, xp=np):
@@ -42,10 +115,16 @@ def total_lens_flux_mujy(fit, magzero, xp=np):
     Total integrated flux of the lens galaxy (``fit.tracer.galaxies[0]``),
     magzero-converted to microjanskies.
 
-    Returns NaN when galaxy 0 has no light profile (raises ``KeyError`` /
-    ``AttributeError`` inside ``fit.galaxy_image_dict``).
+    Returns NaN — with a one-time-per-process warning — when ``magzero``
+    is missing, rather than raising. The µJy conversion is meaningless
+    without a zero-point, but a hard raise during post-fit latent
+    computation would discard the result of an otherwise-converged
+    multi-hour search.
+
+    Also returns NaN when galaxy 0 has no light profile.
     """
-    _require_magzero(magzero, "total_lens_flux_mujy")
+    if _maybe_magzero_warn(magzero, "total_lens_flux_mujy"):
+        return xp.nan
     try:
         image = fit.galaxy_image_dict[fit.tracer.galaxies[0]]
     except (AttributeError, KeyError, IndexError):
@@ -60,9 +139,13 @@ def total_lens_flux_mujy(fit, magzero, xp=np):
 def total_lensed_source_flux_mujy(fit, magzero, xp=np):
     """
     Image-plane integrated flux of the source galaxy after lensing
-    (``fit.galaxy_image_dict[fit.tracer.galaxies[-1]]``).
+    (``fit.galaxy_image_dict[fit.tracer.galaxies[-1]]``), in microjanskies.
+
+    Returns NaN + one warning when ``magzero`` is missing; see
+    :func:`total_lens_flux_mujy` for the rationale.
     """
-    _require_magzero(magzero, "total_lensed_source_flux_mujy")
+    if _maybe_magzero_warn(magzero, "total_lensed_source_flux_mujy"):
+        return xp.nan
     try:
         image = fit.galaxy_image_dict[fit.tracer.galaxies[-1]]
     except (AttributeError, KeyError, IndexError):
@@ -83,8 +166,12 @@ def total_source_flux_mujy(fit, magzero, xp=np):
     is solved by the inversion at fit time) contribute the correct image.
     For non-linear fits this property is a no-op pass-through (returns
     ``fit.tracer``), so the numpy-only and JAX paths both work uniformly.
+
+    Returns NaN + one warning when ``magzero`` is missing; see
+    :func:`total_lens_flux_mujy` for the rationale.
     """
-    _require_magzero(magzero, "total_source_flux_mujy")
+    if _maybe_magzero_warn(magzero, "total_source_flux_mujy"):
+        return xp.nan
     try:
         tracer = fit.tracer_linear_light_profiles_to_light_profiles
         source_image = tracer.galaxies[-1].image_2d_from(
@@ -142,6 +229,9 @@ def effective_einstein_radius(fit, magzero, xp=np):
 
 
 LATENT_FUNCTIONS: Dict[str, Callable] = {
+    "total_lens_flux": total_lens_flux,
+    "total_lensed_source_flux": total_lensed_source_flux,
+    "total_source_flux": total_source_flux,
     "total_lens_flux_mujy": total_lens_flux_mujy,
     "total_lensed_source_flux_mujy": total_lensed_source_flux_mujy,
     "total_source_flux_mujy": total_source_flux_mujy,
