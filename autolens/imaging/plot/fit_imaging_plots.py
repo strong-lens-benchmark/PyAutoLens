@@ -49,7 +49,22 @@ def _compute_critical_curve_lines(tracer, grid):
             ["white"] * len(_tan_ca_lines) + ["yellow"] * len(_rad_ca_lines)
         )
         return image_plane_lines, image_plane_line_colors, source_plane_lines, source_plane_line_colors
+    except (ModuleNotFoundError, ValueError):
+        # ModuleNotFoundError: jax_zero_contour missing — already warned upstream in
+        # plot_utils._critical_curves_method().
+        # ValueError: no zero crossings in the eigenvalue grid (e.g. slope >= 2
+        # isothermal where lambda_r > 0 everywhere). Curves don't exist for this
+        # model, so rendering without overlays is correct.
+        return None, None, None, None
     except Exception:
+        # Anything else — log loudly with traceback so the next regression of the
+        # "ZeroSolver raised inside model-fit, viz fell back to all-zero" failure
+        # mode (PyAutoGalaxy abd7b717, PyAutoFit #1280) does not stay silent.
+        logger.warning(
+            "Critical-curve computation failed unexpectedly; rendering without "
+            "overlays. Investigate — this used to be a silent fallback.",
+            exc_info=True,
+        )
         return None, None, None, None
 
 
@@ -98,7 +113,8 @@ from autolens.lens.plot.tracer_plots import plane_image_from
 
 def _plot_source_plane(fit, ax, plane_index, zoom_to_brightest=True,
                        colormap=None, use_log10=False, title=None,
-                       lines=None, line_colors=None, vmax=None):
+                       lines=None, line_colors=None, vmax=None,
+                       zoom_extent_scale: float = 1.0):
     """
     Plot the source-plane image (or a blank inversion placeholder) into an axes.
 
@@ -142,10 +158,20 @@ def _plot_source_plane(fit, ax, plane_index, zoom_to_brightest=True,
                 extent=zoom.extent_from(buffer=0),
                 shape_native=zoom.shape_native,
             )
+        zoom_extent_bounds = None
+        if zoom_extent_scale != 1.0:
+            zoom = aa.Zoom2D(mask=fit.mask)
+            no_zoom_grid = aa.Grid2D.from_extent(
+                extent=zoom.extent_from(buffer=0),
+                shape_native=zoom.shape_native,
+            )
+            zoom_extent_bounds = no_zoom_grid.geometry.extent
         image = plane_image_from(
             galaxies=tracer.planes[plane_index],
             grid=grid,
             zoom_to_brightest=zoom_to_brightest,
+            zoom_extent_scale=zoom_extent_scale,
+            zoom_extent_bounds=zoom_extent_bounds,
         )
         plot_array(
             array=image, ax=ax,
@@ -169,6 +195,7 @@ def _plot_source_plane(fit, ax, plane_index, zoom_to_brightest=True,
                 use_log10=use_log10,
                 vmax=vmax,
                 zoom_to_brightest=zoom_to_brightest,
+                zoom_extent_scale=zoom_extent_scale,
                 lines=lines,
                 line_colors=line_colors,
             )
@@ -196,13 +223,15 @@ def subplot_fit(
 
     Arranges the following panels in a 3 × 4 grid:
 
-    * Data (full scale and source scale)
-    * Signal-to-noise map
+    * Data
     * Model image
+    * Signal-to-noise map
+    * Source plane image (max zoom)
     * Lens-light model image
     * Lens-light-subtracted image (source scale)
     * Source model image (source scale)
-    * Source plane image (zoomed)
+    * Source plane image (mid zoom — 2× wider than max zoom, square, shrunk
+      uniformly so all edges stay inside the no-zoom extent)
     * Normalised residual map (symmetric scale)
     * Normalised residual map clipped to ± 1 σ
     * Chi-squared map
@@ -250,15 +279,18 @@ def subplot_fit(
 
     plot_array(array=fit.data, ax=axes_flat[0], title=_pf("Data"), colormap=colormap)
 
-    # Data at source scale
-    plot_array(array=fit.data, ax=axes_flat[1], title=_pf("Data (Source Scale)"),
-               colormap=colormap, vmax=source_vmax)
+    plot_array(array=fit.model_data, ax=axes_flat[1], title=_pf("Model Image"),
+               colormap=colormap, lines=image_plane_lines,
+               line_colors=image_plane_line_colors)
 
     plot_array(array=fit.signal_to_noise_map, ax=axes_flat[2],
                title=_pf("Signal-To-Noise Map"), colormap=colormap)
-    plot_array(array=fit.model_data, ax=axes_flat[3], title=_pf("Model Image"),
-               colormap=colormap, lines=image_plane_lines,
-               line_colors=image_plane_line_colors)
+
+    # Source plane (max zoom)
+    _plot_source_plane(fit, axes_flat[3], final_plane_index, zoom_to_brightest=True,
+                       colormap=colormap, title=_pf("Source Plane (Max Zoom)"),
+                       lines=source_plane_lines, line_colors=source_plane_line_colors,
+                       vmax=source_vmax)
 
     # Lens model image
     try:
@@ -295,11 +327,11 @@ def subplot_fit(
     else:
         axes_flat[6].axis("off")
 
-    # Source plane zoomed
+    # Source plane (mid zoom) — same centre as Max Zoom, 2.5x wider extent
     _plot_source_plane(fit, axes_flat[7], final_plane_index, zoom_to_brightest=True,
-                       colormap=colormap, title=_pf("Source Plane (Zoomed)"),
+                       colormap=colormap, title=_pf("Source Plane (Mid Zoom)"),
                        lines=source_plane_lines, line_colors=source_plane_line_colors,
-                       vmax=source_vmax)
+                       vmax=source_vmax, zoom_extent_scale=2.0)
 
     # Normalized residual map (symmetric)
     norm_resid = fit.normalized_residual_map
@@ -324,6 +356,94 @@ def subplot_fit(
     hide_unused_axes(axes_flat)
     tight_layout()
     save_figure(fig, path=output_path, filename=f"fit{plane_index_tag}", format=output_format)
+
+
+def subplot_fit_quick(
+    fit,
+    output_path: Optional[str] = None,
+    output_format: str = None,
+    colormap: Optional[str] = None,
+    image_plane_lines=None,
+    image_plane_line_colors=None,
+    source_plane_lines=None,
+    source_plane_line_colors=None,
+    title_prefix: str = None,
+):
+    """
+    Produce a 6-panel quick-update subplot summarising an imaging fit.
+
+    Arranges the following panels in a 2 × 3 grid:
+
+    * Data
+    * Model image
+    * Normalised residual map (symmetric scale)
+    * Lens-light-subtracted image
+    * Source model image
+    * Source plane image
+
+    Uses the standard ``plot_array`` / ``_plot_source_plane`` for
+    consistent styling with arcsecond axes. Fit properties are now
+    ``@cached_property`` so repeated access is cheap.
+
+    For single-plane tracers the function delegates to
+    :func:`subplot_fit_x1_plane`.
+    """
+    if len(fit.tracer.planes) == 1:
+        return subplot_fit_x1_plane(
+            fit, output_path=output_path,
+            output_format=output_format, colormap=colormap,
+            title_prefix=title_prefix,
+        )
+
+    final_plane_index = len(fit.tracer.planes) - 1
+    source_vmax = _get_source_vmax(fit)
+
+    _pf = (lambda t: f"{title_prefix.rstrip()} {t}") if title_prefix else (lambda t: t)
+    fig, axes = subplots(2, 3, figsize=conf_subplot_figsize(2, 3))
+    axes_flat = list(axes.flatten())
+
+    # Top row: Data, Model Image, Normalized Residual Map
+    plot_array(array=fit.data, ax=axes_flat[0],
+               title=_pf("Data"), colormap=colormap)
+
+    plot_array(array=fit.model_data, ax=axes_flat[1],
+               title=_pf("Model Image"), colormap=colormap)
+
+    plot_array(array=fit.normalized_residual_map, ax=axes_flat[2],
+               title=_pf("Normalized Residual"), colormap=colormap,
+               symmetric=True)
+
+    # Bottom row: Lens Light Subtracted, Source Model Image, Source Plane
+    try:
+        subtracted = fit.subtracted_images_of_planes_list[final_plane_index]
+    except (IndexError, AttributeError):
+        subtracted = None
+    if subtracted is not None:
+        plot_array(array=subtracted, ax=axes_flat[3],
+                   title=_pf("Lens Light Subtracted"), colormap=colormap,
+                   vmin=0.0 if source_vmax else None, vmax=source_vmax)
+    else:
+        axes_flat[3].axis("off")
+
+    try:
+        source_model = fit.model_images_of_planes_list[final_plane_index]
+    except (IndexError, AttributeError):
+        source_model = None
+    if source_model is not None:
+        plot_array(array=source_model, ax=axes_flat[4],
+                   title=_pf("Source Model Image"), colormap=colormap,
+                   vmax=source_vmax)
+    else:
+        axes_flat[4].axis("off")
+
+    _plot_source_plane(
+        fit, axes_flat[5], final_plane_index, zoom_to_brightest=False,
+        colormap=colormap, title=_pf("Source Plane"), vmax=source_vmax,
+    )
+
+    hide_unused_axes(axes_flat)
+    tight_layout()
+    save_figure(fig, path=output_path, filename="fit_quick", format=output_format, dpi=100)
 
 
 def subplot_fit_x1_plane(
@@ -411,7 +531,10 @@ def subplot_fit_log10(
     positive-valued panels (data, model image, lens-light model, subtracted
     image, source model image, chi-squared map, source plane images).
     Residual panels are left on a linear scale because they contain negative
-    values.
+    values.  Includes Source Plane (Max Zoom) and Source Plane (Mid Zoom)
+    panels — Mid Zoom shares the Max Zoom centre with extents 2x larger,
+    kept square and shrunk uniformly so all edges stay inside the No Zoom
+    extent.
 
     For single-plane tracers the function delegates to
     :func:`subplot_fit_log10_x1_plane`.
@@ -455,11 +578,9 @@ def subplot_fit_log10(
     plot_array(array=fit.data, ax=axes_flat[0], title=_pf("Data"), colormap=colormap,
                use_log10=True)
 
-    try:
-        plot_array(array=fit.data, ax=axes_flat[1], title=_pf("Data (Source Scale)"),
-                   colormap=colormap, use_log10=True)
-    except ValueError:
-        axes_flat[1].axis("off")
+    plot_array(array=fit.model_data, ax=axes_flat[1], title=_pf("Model Image"),
+               colormap=colormap, use_log10=True, lines=image_plane_lines,
+               line_colors=image_plane_line_colors)
 
     try:
         plot_array(array=fit.signal_to_noise_map, ax=axes_flat[2],
@@ -467,9 +588,12 @@ def subplot_fit_log10(
     except ValueError:
         axes_flat[2].axis("off")
 
-    plot_array(array=fit.model_data, ax=axes_flat[3], title=_pf("Model Image"),
-               colormap=colormap, use_log10=True, lines=image_plane_lines,
-               line_colors=image_plane_line_colors)
+    # Source plane (max zoom)
+    _plot_source_plane(fit, axes_flat[3], final_plane_index, zoom_to_brightest=True,
+                       colormap=colormap, use_log10=True,
+                       title=_pf("Source Plane (Max Zoom)"),
+                       lines=source_plane_lines, line_colors=source_plane_line_colors,
+                       vmax=source_vmax)
 
     try:
         lens_model_img = fit.model_images_of_planes_list[0]
@@ -493,11 +617,12 @@ def subplot_fit_log10(
     except (IndexError, AttributeError):
         axes_flat[6].axis("off")
 
+    # Source plane (mid zoom) — same centre as Max Zoom, 2.5x wider extent
     _plot_source_plane(fit, axes_flat[7], final_plane_index, zoom_to_brightest=True,
                        colormap=colormap, use_log10=True,
-                       title=_pf("Source Plane (Zoomed)"),
+                       title=_pf("Source Plane (Mid Zoom)"),
                        lines=source_plane_lines, line_colors=source_plane_line_colors,
-                       vmax=source_vmax)
+                       vmax=source_vmax, zoom_extent_scale=2.0)
 
     norm_resid = fit.normalized_residual_map
     _abs_max = _symmetric_vmax(norm_resid)
@@ -864,6 +989,28 @@ def subplot_fit_combined(
 
     tight_layout()
     save_figure(fig, path=output_path, filename="fit_combined", format=output_format)
+
+
+def subplot_fit_combined_quick(
+    fit_list: List,
+    output_path: Optional[str] = None,
+    output_format: str = None,
+    colormap: Optional[str] = None,
+    title_prefix: str = None,
+):
+    """
+    Placeholder quick-update subplot for combined multi-dataset imaging fits.
+
+    Currently delegates to :func:`subplot_fit_combined` but writes
+    ``fit_quick.png`` so the live display picks it up.
+    """
+    subplot_fit_combined(
+        fit_list,
+        output_path=output_path,
+        output_format=output_format,
+        colormap=colormap,
+        title_prefix=title_prefix,
+    )
 
 
 def subplot_fit_combined_log10(

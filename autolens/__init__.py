@@ -63,9 +63,14 @@ from autogalaxy.galaxy.galaxies import Galaxies
 from autogalaxy.galaxy.galaxy_table import GalaxyTable
 from autogalaxy.galaxy.galaxy_table import galaxy_table_from_csv
 from autogalaxy.galaxy.galaxy_table import galaxy_table_to_csv
+from autogalaxy.galaxy.galaxy_model_csv import GalaxyModelRow
+from autogalaxy.galaxy.galaxy_model_csv import GalaxyModelTable
+from autogalaxy.galaxy.galaxy_model_csv import galaxy_models_from_csv
+from autogalaxy.galaxy.galaxy_model_csv import galaxy_models_to_csv
+from autogalaxy.galaxy.galaxy_model_csv import galaxies_from_csv_tables
+from autogalaxy.galaxy.galaxy_model_csv import galaxy_af_models_from_csv_tables
 from autogalaxy.galaxy.redshift import Redshift
 
-from autogalaxy.quantity.dataset_quantity import DatasetQuantity
 from autogalaxy.profiles.geometry_profiles import EllProfile
 from autogalaxy.profiles import (
     point_sources as ps,
@@ -86,7 +91,6 @@ from autogalaxy.profiles.light import (
 from autogalaxy.profiles.light.linear import LightProfileLinearObjFuncList
 from autogalaxy.operate.image import OperateImage
 from autogalaxy.operate.lens_calc import LensCalc
-from autogalaxy.quantity.dataset_quantity import DatasetQuantity
 from autogalaxy import convert
 
 from . import aggregator as agg
@@ -119,9 +123,8 @@ from .point.max_separation import SourceMaxSeparation
 from .point.model.analysis import AnalysisPoint
 from .point.solver import PointSolver
 from .point.solver.shape_solver import ShapeSolver
-from .quantity.fit_quantity import FitQuantity
-from .quantity.model.analysis import AnalysisQuantity
 from .weak.dataset import WeakDataset
+from .weak.fit import FitWeak
 from .weak.simulator import SimulatorShearYX
 
 from . import exc
@@ -137,7 +140,7 @@ from autoconf.fitsable import hdu_list_for_output_from
 
 conf.instance.register(__file__)
 
-__version__ = "2026.5.8.2"
+__version__ = "2026.5.29.4"
 
 from autoconf import check_version
 

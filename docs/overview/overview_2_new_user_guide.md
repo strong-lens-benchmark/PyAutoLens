@@ -17,18 +17,18 @@ There are three scales to choose from:
 - **Galaxy Scale**: Made up of a single lens galaxy lensing a single source galaxy, the simplest strong lens you can get!
   If you're interested in galaxy scale lenses, go to the question below called "What Data Type?".
 - **Group Scale**: Strong Lens Groups contains 2-10 lens galaxies, normally with one main large galaxy responsible for the majority of lensing.
-  They also typically lens just one source galaxy. If you are interested in groups, go to the [group/start_here.ipynb](https://github.com/Jammy2211/autolens_workspace/blob/release/notebooks/group/start_here.ipynb) notebook.
+  They also typically lens just one source galaxy. If you are interested in groups, go to the [group/start_here.ipynb](https://github.com/PyAutoLabs/autolens_workspace/blob/main/notebooks/group/start_here.ipynb) notebook.
 - **Cluster Scale**: Strong Lens Galaxy clusters often contained 20-50, or more, lens galaxies, lensing 10, or more, sources galaxies.
-  If you are interested in clusters, go to the [cluster/start_here.ipynb](https://github.com/Jammy2211/autolens_workspace/blob/release/notebooks/cluster/start_here.ipynb) notebook.
+  If you are interested in clusters, go to the [cluster/start_here.ipynb](https://github.com/PyAutoLabs/autolens_workspace/blob/main/notebooks/cluster/start_here.ipynb) notebook.
 
 ## What Dataset Type?
 
 If you are interested in galaxy-scale strong lenses, you now need to decide what type of strong lens data you are
 interested in:
 
-- **CDD Imaging**: For image data from telescopes like Hubble and James Webb, go to [imaging/start_here.ipynb](https://github.com/Jammy2211/autolens_workspace/blob/release/notebooks/imaging/start_here.ipynb).
-- **Interferometer**: For radio / sub-mm interferometer from instruments like ALMA, go to [interferometer/start_here.ipynb](https://github.com/Jammy2211/autolens_workspace/blob/release/notebooks/interferometer/start_here.ipynb).
-- **Point Sources**: For strongly lensed point sources (e.g. lensed quasars, supernovae), go to [point_source/start_here.ipynb](hhttps://github.com/Jammy2211/autolens_workspace/blob/release/notebooks/point_source/start_here.ipynb).
+- **CDD Imaging**: For image data from telescopes like Hubble and James Webb, go to [imaging/start_here.ipynb](https://github.com/PyAutoLabs/autolens_workspace/blob/main/notebooks/imaging/start_here.ipynb).
+- **Interferometer**: For radio / sub-mm interferometer from instruments like ALMA, go to [interferometer/start_here.ipynb](https://github.com/PyAutoLabs/autolens_workspace/blob/main/notebooks/interferometer/start_here.ipynb).
+- **Point Sources**: For strongly lensed point sources (e.g. lensed quasars, supernovae), go to [point_source/start_here.ipynb](https://github.com/PyAutoLabs/autolens_workspace/blob/main/notebooks/point_source/start_here.ipynb).
 
 ## Google Colab
 
@@ -41,11 +41,11 @@ environment with all the required dependencies already installed.
 This is a great way to get started quickly without needing to install **PyAutoLens** on your own machine,
 so you can check its the right software for you before going through the installation process:
 
-> - [imaging/start_here.ipynb](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.8.2/notebooks/imaging/start_here.ipynb): Galaxy scale strong lenses observed with CCD imaging (e.g. Hubble, James Webb).
-> - [interferometer/start_here.ipynb](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.8.2/notebooks/interferometer/start_here.ipynb): Galaxy scale strong lenses observed with interferometer data (e.g. ALMA).
-> - [point_source/start_here.ipynb](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.8.2/notebooks/point_source/start_here.ipynb): Galaxy scale strong lenses with a lensed point source (e.g. lensed quasars).
-> - [group/start_here.ipynb](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.8.2/notebooks/group/start_here.ipynb): Group scale strong lenses where there are 2-10 lens galaxies.
-> - [cluster/start_here.ipynb](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.8.2/notebooks/cluster/start_here.ipynb): Cluster scale strong lenses with 2+ lenses and 5+ source galaxies.
+> - [imaging/start_here.ipynb](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.29.4/notebooks/imaging/start_here.ipynb): Galaxy scale strong lenses observed with CCD imaging (e.g. Hubble, James Webb).
+> - [interferometer/start_here.ipynb](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.29.4/notebooks/interferometer/start_here.ipynb): Galaxy scale strong lenses observed with interferometer data (e.g. ALMA).
+> - [point_source/start_here.ipynb](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.29.4/notebooks/point_source/start_here.ipynb): Galaxy scale strong lenses with a lensed point source (e.g. lensed quasars).
+> - [group/start_here.ipynb](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.29.4/notebooks/group/start_here.ipynb): Group scale strong lenses where there are 2-10 lens galaxies.
+> - [cluster/start_here.ipynb](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.29.4/notebooks/cluster/start_here.ipynb): Cluster scale strong lenses with 2+ lenses and 5+ source galaxies.
 
 ## Still Unsure?
 

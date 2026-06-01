@@ -72,7 +72,7 @@ affiliations:
     index: 7
 
 date: 25 January 2022
-codeRepository: https://github.com/Jammy2211/PyAutoLens
+codeRepository: https://github.com/PyAutoLabs/PyAutoLens
 license: MIT
 bibliography: paper.bib
 ---
@@ -88,7 +88,7 @@ strong lenses. The API allows users to perform ray-tracing by using analytic lig
 lens systems. Accompanying `PyAutoLens` is the [autolens workspace](https://github.com/PyAutoLabs/autolens_workspace), which 
 includes example scripts and lens datasets covering every use case. The [`HowToLens`](https://github.com/PyAutoLabs/HowToLens)
 repository provides a separate Jupyter notebook lecture series which introduces non-experts to strong lensing using `PyAutoLens`. Readers can 
-try `PyAutoLens` right now by going to [the introduction Jupyter notebook on Colab](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.8.2/start_here.ipynb) 
+try `PyAutoLens` right now by going to [the introduction Jupyter notebook on Colab](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.29.4/notebooks/imaging/start_here.ipynb) 
 or checkout the [readthedocs](https://pyautolens.readthedocs.io/en/latest/) for a complete overview of `PyAutoLens`'s features.
 
 # Background
@@ -137,7 +137,7 @@ extensible, making it straightforward to compose highly customized lensing syste
 optimized using the packages `NumPy` [@numpy], `numba` [@numba] and `pyquad` [@pyquad].
 
 To perform lens modeling, `PyAutoLens` adopts the probabilistic programming 
-language `PyAutoFit` (https://github.com/rhayes777/PyAutoFit). `PyAutoFit` allows users to compose a 
+language `PyAutoFit` (https://github.com/PyAutoLabs/PyAutoFit). `PyAutoFit` allows users to compose a 
 lens model from `LightProfile`, `MassProfile` and `Galaxy` objects, customize the model parameterization and fit it to 
 data via a non-linear search (e.g., `dynesty` [@dynesty], `emcee` [@emcee], `PySwarms` [@pyswarms]). By composing a 
 lens model with a `Pixelization`  object, the background source's light is reconstructed using a 
@@ -149,7 +149,7 @@ Automated lens modeling uses `PyAutoFit`'s non-linear search chaining feature, w
 a chained sequence of non-linear searches. These fits pass information gained about simpler lens models fitted by earlier 
 searches to subsequent searches, which fit progressively more complex models. By granularizing the model-fitting 
 procedure, automated pipelines that fit complex lens models without human intervention can be carefully crafted, with 
-example pipelines found on the [autolens workspace](https://github.com/Jammy2211/autolens_workspace). To ensure the 
+example pipelines found on the [autolens workspace](https://github.com/PyAutoLabs/autolens_workspace). To ensure the 
 analysis and interpretation of fits to large lens datasets is feasible, `PyAutoFit`'s database tools write lens modeling 
 results to a relational database which can be queried from hard-disk to a Python script or Jupyter notebook. This uses 
 memory-light `Python` generators, ensuring it is practical for thousands of lenses.
@@ -182,7 +182,7 @@ interferometer datasets before a `PyAutoLens` analysis. The [`HowToLens`](https:
 tutorials — a standalone repository separate from the workspace — are a five chapter lecture series composed of over
 30 Jupyter notebooks aimed at non-experts, introducing them to strong gravitational lensing, Bayesian inference and
 teaching them how to use `PyAutoLens` for their scientific study. The lectures are available on
-[Colab](https://colab.research.google.com/github/PyAutoLabs/HowToLens/blob/2026.5.8.2/notebooks/chapter_1_introduction/tutorial_1_grids_and_galaxies.ipynb)
+[Colab](https://colab.research.google.com/github/PyAutoLabs/HowToLens/blob/2026.5.29.4/notebooks/chapter_1_introduction/tutorial_1_grids_and_galaxies.ipynb)
 and may therefore be taken without a local `PyAutoLens` installation.
 
 # Software Citations

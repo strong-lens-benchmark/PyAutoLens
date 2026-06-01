@@ -27,10 +27,45 @@ logger = logging.getLogger(__name__)
 logger.setLevel(level="INFO")
 
 
+_FIT_IMAGING_PYTREES_REGISTERED = False
+
+
 class AnalysisImaging(AnalysisDataset):
 
     Result = ResultImaging
     Visualizer = VisualizerImaging
+
+    @property
+    def LATENT_KEYS(self):
+        from autolens.analysis.latent import latent_keys_enabled
+        return latent_keys_enabled()
+
+    def compute_latent_variables(self, parameters, model):
+        """
+        Compute the catalogue of lensing latent variables enabled in
+        ``config/latent.yaml`` for the given parameter vector.
+
+        Returns a tuple positionally aligned with :attr:`LATENT_KEYS` —
+        PyAutoFit zips it with the keys at
+        ``autofit/non_linear/analysis/analysis.py:285`` and stacks per
+        sample for the JIT batch path at lines 223-234.
+
+        Raises ``NotImplementedError`` when no latents are enabled so
+        PyAutoFit's outer ``except NotImplementedError`` short-circuits
+        the latent pipeline cleanly (no empty ``latent.csv`` written).
+        """
+        from autolens.analysis.latent import LATENT_FUNCTIONS
+
+        keys = self.LATENT_KEYS
+        if not keys:
+            raise NotImplementedError
+
+        xp = self._xp
+        instance = model.instance_from_vector(vector=parameters)
+        fit = self.fit_from(instance=instance)
+        magzero = self.kwargs.get("magzero", None)
+        context = {"fit": fit, "magzero": magzero, "xp": xp}
+        return tuple(LATENT_FUNCTIONS[k](**context) for k in keys)
 
     def log_likelihood_function(self, instance: af.ModelInstance) -> float:
         """
@@ -118,7 +153,10 @@ class AnalysisImaging(AnalysisDataset):
         dataset_model = self.dataset_model_via_instance_from(instance=instance)
 
         adapt_images = self.adapt_images_via_instance_from(
-            instance=instance, galaxies=tracer.galaxies
+            instance=instance,
+            dataset_model=dataset_model,
+            galaxies=tracer.galaxies,
+            xp=self._xp,
         )
 
         return FitImaging(
@@ -139,10 +177,37 @@ class AnalysisImaging(AnalysisDataset):
         analysis — ride as aux so JAX does not recurse into them. Everything
         else (``tracer``, ``dataset_model`` and the autoarray wrappers they
         carry) is dynamic per fit.
+
+        Idempotent — guarded by the module-level
+        ``_FIT_IMAGING_PYTREES_REGISTERED`` flag. ``DatasetModel`` and
+        ``Tracer`` may already be registered by
+        ``autofit.jax.pytrees.register_model`` (its
+        ``_REGISTERED_INSTANCE_CLASSES`` set is independent of autoarray's
+        ``_pytree_registered_classes``); cross-populate so
+        ``register_instance_pytree`` short-circuits. Mirrors the defense in
+        ``autogalaxy/ellipse/model/analysis.py``.
         """
-        from autoarray.abstract_ndarray import register_instance_pytree
+        global _FIT_IMAGING_PYTREES_REGISTERED
+        if _FIT_IMAGING_PYTREES_REGISTERED:
+            return
+
+        from autoarray.abstract_ndarray import (
+            register_instance_pytree,
+            _pytree_registered_classes,
+        )
         from autoarray.dataset.dataset_model import DatasetModel
         from autolens.lens.tracer import Tracer
+
+        try:
+            from autofit.jax.pytrees import (
+                _REGISTERED_INSTANCE_CLASSES as _af_registered,
+            )
+        except ImportError:
+            _af_registered = set()
+
+        for cls in (DatasetModel, Tracer):
+            if cls in _af_registered:
+                _pytree_registered_classes.add(cls)
 
         register_instance_pytree(
             FitImaging,
@@ -151,4 +216,6 @@ class AnalysisImaging(AnalysisDataset):
         register_instance_pytree(DatasetModel)
         # ``cosmology`` is a fixed physical constant per fit; ride as aux.
         register_instance_pytree(Tracer, no_flatten=("cosmology",))
+
+        _FIT_IMAGING_PYTREES_REGISTERED = True
 

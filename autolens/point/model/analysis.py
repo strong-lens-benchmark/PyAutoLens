@@ -43,6 +43,7 @@ class AnalysisPoint(AgAnalysis, AnalysisLens):
         cosmology: ag.cosmo.LensingCosmology = None,
         title_prefix: str = None,
         use_jax: bool = True,
+        **kwargs,
     ):
         """
         Fits a lens model to a point source dataset (e.g. positions, fluxes, time delays) via a non-linear search.
@@ -77,7 +78,7 @@ class AnalysisPoint(AgAnalysis, AnalysisLens):
             A string that is added before the title of all figures output by visualization, for example to
             put the name of the dataset and galaxy in the title.
         """
-        super().__init__(cosmology=cosmology, use_jax=use_jax)
+        super().__init__(cosmology=cosmology, use_jax=use_jax, **kwargs)
 
         AnalysisLens.__init__(self=self, cosmology=cosmology, use_jax=use_jax)
 

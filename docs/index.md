@@ -8,12 +8,16 @@ When two or more galaxies are aligned perfectly down our line-of-sight, the back
 
 This is called strong gravitational lensing and **PyAutoLens** makes it simple to model strong gravitational lenses, using JAX to **accelerate lens modeling on GPUs**.
 
+```{note}
+🤖 **Prototype:** [autolens_assistant](https://github.com/PyAutoLabs/autolens_assistant) is an early-stage AI assistant you talk to in natural language to do lens modeling end-to-end. It is experimental and **not the recommended starting point** — the readthedocs, autolens_workspace, and HowToLens below remain the canonical entry points. Try it if you'd like to drive PyAutoLens by conversation.
+```
+
 # Getting Started
 
 The following links are useful for new starters:
 
 - [The PyAutoLens readthedocs](https://pyautolens.readthedocs.io/en/latest): which includes [an overview of PyAutoLens's core features](https://pyautolens.readthedocs.io/en/latest/overview/overview_1_start_here.html), [a new user starting guide](https://pyautolens.readthedocs.io/en/latest/overview/overview_2_new_user_guide.html) and [an installation guide](https://pyautolens.readthedocs.io/en/latest/installation/overview.html).
-- [The introduction Jupyter Notebook on Colab](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.8.2/start_here.ipynb), where you can try **PyAutoLens** in a web browser (without installation).
+- [The introduction Jupyter Notebook on Colab](https://colab.research.google.com/github/PyAutoLabs/autolens_workspace/blob/2026.5.29.4/notebooks/imaging/start_here.ipynb), where you can try **PyAutoLens** in a web browser (without installation).
 - [The autolens_workspace GitHub repository](https://github.com/PyAutoLabs/autolens_workspace), which includes example scripts covering every **PyAutoLens** use case.
 - [The HowToLens GitHub repository](https://github.com/PyAutoLabs/HowToLens): a Jupyter notebook lecture series teaching strong lensing and lens modeling from the ground up.
 
@@ -28,7 +32,7 @@ imaged source galaxy whose light has been distorted into an 'Einstein ring'. The
 reconstructions of the source's lensed and unlensed light distributions, which are created using a model of the lens
 galaxy's mass to trace backwards how the source's light is gravitationally lensed.
 
-```{image} https://github.com/Jammy2211/PyAutoLens/blob/main/files/imageaxis.png?raw=true
+```{image} https://github.com/PyAutoLabs/PyAutoLens/blob/main/files/imageaxis.png?raw=true
 ```
 
 Strong lensing provides astronomers with an invaluable tool to study a diverse range of topics, including the
@@ -109,7 +113,7 @@ tracer_plotter.figures_2d(image=True)
 ```
 
 To perform lens modeling, **PyAutoLens** adopts the probabilistic programming
-language [PyAutoFit](https://github.com/rhayes777/PyAutoFit). **PyAutoFit** allows users to compose a
+language [PyAutoFit](https://github.com/PyAutoLabs/PyAutoFit). **PyAutoFit** allows users to compose a
 lens model from `LightProfile`, `MassProfile` and `Galaxy` objects, customize the model parameterization and
 fit it to data via a non-linear search (e.g. [dynesty](https://github.com/joshspeagle/dynesty),
 [emcee](https://github.com/dfm/emcee) or [PySwarms](https://pyswarms.readthedocs.io/en/latest/)). The example
@@ -194,7 +198,7 @@ datasets.
 For new **PyAutoLens** users, we recommend they start by
 [installing PyAutoLens](https://pyautolens.readthedocs.io/en/latest/installation/overview.html) (if you haven't
 already!), read through the `start_here.ipynb` notebook on
-the [autolens_workspace](https://github.com/Jammy2211/autolens_workspace) and take the
+the [autolens_workspace](https://github.com/PyAutoLabs/autolens_workspace) and take the
 [HowToLens Jupyter notebook lecture series](https://pyautolens.readthedocs.io/en/latest/howtolens/howtolens.html) on
 strong gravitational lensing.
 

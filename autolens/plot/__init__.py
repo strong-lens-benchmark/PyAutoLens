@@ -34,7 +34,6 @@ from autogalaxy.plot import (
     subplot_fit_imaging_of_galaxy,
     subplot_fit_dirty_images,
     subplot_fit_real_space,
-    subplot_fit_quantity,
     subplot_fit_ellipse,
     subplot_ellipse_errors,
 )
@@ -64,6 +63,20 @@ from autolens.interferometer.plot.fit_interferometer_plots import (
 )
 from autolens.point.plot.fit_point_plots import subplot_fit as subplot_fit_point
 from autolens.point.plot.point_dataset_plots import subplot_dataset as subplot_point_dataset
+
+from autolens.weak.plot.weak_dataset_plots import (
+    plot_shear_yx_2d,
+    plot_ellipticities,
+    plot_phis,
+    plot_noise_map,
+    subplot_weak_dataset,
+)
+from autolens.weak.plot.fit_weak_plots import (
+    plot_data_vs_model,
+    plot_residuals,
+    plot_chi_squared_map,
+    subplot_fit_weak,
+)
 
 from autolens.lens.plot.subhalo_plots import (
     subplot_detection_imaging,

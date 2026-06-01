@@ -393,6 +393,9 @@ class Result(AgResultDataset):
             plane_redshift=plane_redshift,
         )
 
+        if maximum_threshold is not None:
+            threshold = min(threshold, maximum_threshold)
+
         return PositionsLH(
             positions=positions, threshold=threshold, plane_redshift=plane_redshift
         )
