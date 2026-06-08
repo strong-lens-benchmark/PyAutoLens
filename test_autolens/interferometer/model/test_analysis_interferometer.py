@@ -99,16 +99,20 @@ def test__shared_state_from__preloads_curvature_reused__figure_of_merit_unchange
         dataset=dataset, use_jax=False, shared_preloads=True
     )
 
-    # `shared_state_from` builds a `PreloadsInterferometer` carrying the curvature matrix `F`.
+    # `shared_state_from` builds a `PreloadsInterferometer` carrying the curvature matrix `F` and
+    # the mapper (the channel-invariant inversion-setup quantities).
     shared = analysis.shared_state_from(instance=instance)
     assert isinstance(shared, aa.PreloadsInterferometer)
     assert shared.curvature_matrix is not None
+    assert shared.mapper_galaxy_dict is not None
 
-    # The preloaded `F` is reused by the fit (identity) and leaves the figure of merit unchanged.
+    # The preloaded `F` and mapper are reused by the fit (identity) and leave the figure of merit
+    # unchanged. Reusing the mapper means the Delaunay triangulation is not rebuilt per channel.
     fit_unshared = analysis.fit_from(instance=instance)
     fit_shared = analysis.fit_from(instance=instance, preloads=shared)
 
     assert fit_shared.inversion.curvature_matrix is shared.curvature_matrix
+    assert fit_shared.tracer_to_inversion.mapper_galaxy_dict is shared.mapper_galaxy_dict
     assert fit_shared.figure_of_merit == pytest.approx(fit_unshared.figure_of_merit)
 
     # The full `log_likelihood_function` with the shared object matches the unshared call.

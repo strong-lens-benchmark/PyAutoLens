@@ -195,10 +195,19 @@ class AnalysisInterferometer(AnalysisDataset):
 
         fit = self.fit_from(instance=instance)
 
-        if fit.inversion is None:
+        if not fit.perform_inversion:
             return None
 
-        return aa.PreloadsInterferometer(curvature_matrix=fit.inversion.curvature_matrix)
+        # Build the inversion-setup quantities once, from a single `TracerToInversion`, so the
+        # mapper is built only once here: the curvature matrix `F` and the mapper (which carries
+        # the Delaunay triangulation) are the channel-invariant quantities reused by every factor.
+        tracer_to_inversion = fit.tracer_to_inversion
+        inversion = tracer_to_inversion.inversion
+
+        return aa.PreloadsInterferometer(
+            curvature_matrix=inversion.curvature_matrix,
+            mapper_galaxy_dict=tracer_to_inversion.mapper_galaxy_dict,
+        )
 
     def fit_from(
         self, instance: af.ModelInstance, preloads=None
@@ -269,7 +278,6 @@ class AnalysisInterferometer(AnalysisDataset):
             _pytree_registered_classes,
         )
         from autoarray.dataset.dataset_model import DatasetModel  # fit-interferometer-pytree-mge
-        from autoarray.preloads import PreloadsInterferometer
         from autolens.lens.tracer import Tracer
 
         try:
@@ -285,14 +293,10 @@ class AnalysisInterferometer(AnalysisDataset):
 
         register_instance_pytree(
             FitInterferometer,
-            no_flatten=("dataset", "adapt_images", "settings"),
+            no_flatten=("dataset", "adapt_images", "settings", "preloads"),
         )
         register_instance_pytree(Tracer, no_flatten=("cosmology",))
         register_instance_pytree(DatasetModel)  # fit-interferometer-pytree-mge
-
-        # The shared-state preloads ride as a dynamic child of `FitInterferometer` (its
-        # `curvature_matrix` is a traced array), so it must flatten as a pytree too.
-        register_instance_pytree(PreloadsInterferometer)
 
         _FIT_INTERFEROMETER_PYTREES_REGISTERED = True
 

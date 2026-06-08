@@ -400,6 +400,9 @@ class TracerToInversion(ag.AbstractToInversion):
         -------
         A dictionary associating each `Mapper` object with the galaxy it belongs to.
         """
+        if self._preloads is not None and self._preloads.mapper_galaxy_dict is not None:
+            return self._preloads.mapper_galaxy_dict
+
         if not self.has_mapper:
             return {}
 
