@@ -23,6 +23,7 @@ from typing import Callable, Dict, List, Optional
 
 import numpy as np
 
+import autofit as af
 from autoconf import conf
 from autogalaxy.imaging.model.latent import (
     ab_mag_via_flux_from,
@@ -298,3 +299,38 @@ def latent_keys_enabled(yaml_config: Optional[Dict[str, bool]] = None) -> List[s
             continue
         enabled.append(key)
     return enabled
+
+
+class LatentLens(af.Latent):
+    """
+    Latent-variable catalogue for strong-lens fits, declared on
+    ``AnalysisImaging`` as ``Latent = LatentLens`` (mirrors ``Visualizer`` /
+    ``Result``).
+
+    :meth:`keys` returns the config-enabled latent names; :meth:`variables`
+    dispatches the :data:`LATENT_FUNCTIONS` registry on a per-sample fit.
+    Subclass to add project-specific latents (e.g. the Euclid pipeline's
+    aperture fluxes), composing the library values via
+    ``LatentLens.variables(analysis, parameters, model)``.
+    """
+
+    # The lensing Einstein-radius latent routes through ``ZeroSolver``
+    # (uses ``lax.cond`` / ``lax.while_loop``, vmap-incompatible), so latents
+    # use the per-sample jit batch path.
+    BATCH_MODE = "jit"
+
+    @staticmethod
+    def keys(analysis) -> List[str]:
+        return latent_keys_enabled()
+
+    @staticmethod
+    def variables(analysis, parameters, model):
+        keys = latent_keys_enabled()
+        if not keys:
+            raise NotImplementedError
+        xp = analysis._xp
+        instance = model.instance_from_vector(vector=parameters)
+        fit = analysis.fit_from(instance=instance)
+        magzero = analysis.kwargs.get("magzero", None)
+        context = {"fit": fit, "magzero": magzero, "xp": xp}
+        return tuple(LATENT_FUNCTIONS[k](**context) for k in keys)
