@@ -11,6 +11,7 @@ import autolens as al
 from autolens.analysis import latent as _latent_module
 from autolens.analysis.latent import (
     LATENT_FUNCTIONS,
+    LatentLens,
     effective_einstein_radius,
     latent_keys_enabled,
     magnification,
@@ -410,7 +411,7 @@ def test_latent_functions_registry_keys():
 # AnalysisImaging end-to-end
 # ---------------------------------------------------------------------------
 
-def test_analysis_imaging_compute_latent_variables_aligns_with_keys(
+def test_latent_lens_variables_aligns_with_keys(
     masked_imaging_7x7,
 ):
     lens_galaxy = al.Galaxy(redshift=0.5, light=al.lp.Sersic(intensity=0.1))
@@ -424,13 +425,14 @@ def test_analysis_imaging_compute_latent_variables_aligns_with_keys(
     )
 
     parameters = np.array(model.physical_values_from_prior_medians)
-    values = analysis.compute_latent_variables(parameters=parameters, model=model)
+    values = LatentLens.variables(analysis, parameters=parameters, model=model)
+    keys = LatentLens.keys(analysis)
 
     assert isinstance(values, tuple)
-    assert len(values) == len(analysis.LATENT_KEYS)
+    assert len(values) == len(keys)
     # test_autolens/config/latent.yaml enables the three raw-flux keys plus
     # total_lens_flux_mujy. magzero=25.0 above keeps the µJy column finite.
-    assert analysis.LATENT_KEYS == [
+    assert keys == [
         "total_lens_flux",
         "total_lensed_source_flux",
         "total_source_flux",
@@ -439,24 +441,21 @@ def test_analysis_imaging_compute_latent_variables_aligns_with_keys(
     assert all(np.isfinite(v) for v in values)
 
 
-def test_analysis_imaging_compute_latent_variables_raises_when_empty(monkeypatch):
-    monkeypatch.setattr(
-        al.AnalysisImaging,
-        "LATENT_KEYS",
-        property(lambda self: []),
-    )
+def test_latent_lens_variables_raises_when_empty(monkeypatch):
+    monkeypatch.setattr(_latent_module, "latent_keys_enabled", lambda *a, **k: [])
     analysis = al.AnalysisImaging(dataset=MagicMock(), use_jax=False)
 
     with pytest.raises(NotImplementedError):
-        analysis.compute_latent_variables(parameters=np.array([]), model=MagicMock())
+        LatentLens.variables(analysis, parameters=np.array([]), model=MagicMock())
 
 
-def test_analysis_imaging_latent_keys_property_reads_config():
+def test_analysis_imaging_declares_latent_lens_and_keys_read_config():
     # The autouse `set_config_path` fixture in test_autolens/conftest.py
     # pushes test_autolens/config/latent.yaml — the three raw-flux keys
     # and total_lens_flux_mujy are enabled there.
     analysis = al.AnalysisImaging(dataset=MagicMock(), use_jax=False)
-    assert analysis.LATENT_KEYS == [
+    assert al.AnalysisImaging.Latent is LatentLens
+    assert LatentLens.keys(analysis) == [
         "total_lens_flux",
         "total_lensed_source_flux",
         "total_source_flux",

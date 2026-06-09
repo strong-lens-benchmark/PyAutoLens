@@ -103,6 +103,8 @@ from .analysis.positions import PositionsLH
 from .imaging.simulator import SimulatorImaging
 from .imaging.fit_imaging import FitImaging
 from .imaging.model.analysis import AnalysisImaging
+from autofit import Latent
+from .analysis.latent import LatentLens
 from .imaging.model.visualizer import VisualizerImaging
 from .interferometer.simulator import SimulatorInterferometer
 from .interferometer.fit_interferometer import FitInterferometer
